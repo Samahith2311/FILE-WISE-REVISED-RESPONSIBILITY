@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../store'
 import type { DomainId } from '../types'
+import { AddFileForm } from './AdminForms'
 import { FileList } from './FileList'
-import { BandLabel, Collapse, inputClass, Pct, ProgressBar } from './ui'
+import { BandLabel, Button, Collapse, inputClass, Pct, ProgressBar } from './ui'
 
 export function DomainBoxes() {
-  const { state, scores } = useStore()
+  const { state, scores, isAdmin } = useStore()
+  const [adding, setAdding] = useState(false)
   const [openDomain, setOpenDomain] = useState<DomainId | null>(null)
   const [query, setQuery] = useState('')
   // Keep the last domain rendered while the panel animates closed.
@@ -17,6 +19,7 @@ export function DomainBoxes() {
   const toggle = (id: DomainId) => {
     setOpenDomain((cur) => (cur === id ? null : id))
     setQuery('')
+    setAdding(false)
   }
 
   return (
@@ -65,15 +68,19 @@ export function DomainBoxes() {
               <h2 className="font-semibold">
                 {state.domains.find((d) => d.id === shown)?.name} files
               </h2>
-              <input
-                type="search"
-                className={`${inputClass} sm:max-w-xs`}
-                placeholder="Search code, title or maintainer"
-                aria-label="Search files"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+              <div className="flex w-full gap-2 sm:w-auto">
+                <input
+                  type="search"
+                  className={`${inputClass} sm:w-72`}
+                  placeholder="Search code, title or maintainer"
+                  aria-label="Search files"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {isAdmin && !adding && <Button onClick={() => setAdding(true)}>Add file</Button>}
+              </div>
             </div>
+            {isAdmin && adding && <AddFileForm key={shown} domain={shown} onDone={() => setAdding(false)} />}
             <FileList files={state.files.filter((f) => f.domain === shown)} query={query} />
           </section>
         )}

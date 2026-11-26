@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useStore } from '../store'
 import type { Semester } from '../types'
+import { AddYearControl } from './AdminForms'
 import { BandLabel, Badge, Button, Pct, ProgressBar } from './ui'
 
 const SEMESTERS: Semester[] = ['Odd', 'Even']
@@ -48,7 +49,7 @@ export function Header({ children }: { children?: ReactNode }) {
               </button>
             ))}
           </div>
-          {children}
+          {isAdmin && <AddYearControl />}
         </div>
 
         <div className="w-44">
@@ -70,6 +71,7 @@ export function Header({ children }: { children?: ReactNode }) {
           </Button>
         </div>
       </div>
+      {children && <div className="mx-auto max-w-6xl px-4">{children}</div>}
     </header>
   )
 }

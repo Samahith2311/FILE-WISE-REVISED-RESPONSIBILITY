@@ -1,5 +1,8 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { useStore } from '../store'
 import type { DeptFile } from '../types'
+import { FileEditor } from './FileEditor'
+import { Button } from './ui'
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -18,8 +21,42 @@ export function presentedInText(file: DeptFile): string {
   return text ? `${text}${proposed ? ' (proposed)' : ''}` : ''
 }
 
-/** Read-only file attributes. */
+/** File attributes. The admin also gets edit and delete controls. */
 export function FileDetails({ file }: { file: DeptFile }) {
+  const { isAdmin, actions } = useStore()
+  const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  if (editing) return <FileEditor file={file} onDone={() => setEditing(false)} />
+
+  return (
+    <div className="space-y-3">
+      <FileFields file={file} />
+      {isAdmin && (
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setEditing(true)}>Edit details</Button>
+          {!file.container &&
+            (confirmDelete ? (
+              <>
+                <Button variant="danger" onClick={() => void actions.deleteFile(file.id)}>
+                  Delete {file.code} and its checklist
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+                  Keep file
+                </Button>
+              </>
+            ) : (
+              <Button variant="ghost" className="text-rose-700" onClick={() => setConfirmDelete(true)}>
+                Delete file
+              </Button>
+            ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FileFields({ file }: { file: DeptFile }) {
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="sm:col-span-2 lg:col-span-4">
