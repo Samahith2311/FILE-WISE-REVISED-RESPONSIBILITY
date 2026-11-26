@@ -3,6 +3,7 @@
  * Run: npm run check:scoring
  */
 import assert from 'node:assert/strict'
+import { applyBulkCriteria, applyReassign, applyRename, replacePerson } from '../src/lib/faculty'
 import { bandColor, bandFor, computeScores, statusKey } from '../src/lib/scoring'
 import { initialState } from '../src/repo/initialState'
 import type { AppState, ChecklistItem, DeptFile, DomainId, ItemStatus, Period } from '../src/types'
@@ -54,6 +55,8 @@ function sample(spec: Array<[DeptFile, ItemStatus[]]>, period: Period = ODD): Ap
     domains: [],
     files: spec.map(([f]) => f),
     items,
+    faculty: [],
+    criteria: [],
     statuses,
     activity: [],
   }
@@ -153,6 +156,58 @@ check('fresh seed scores 0 everywhere (default not completed)', () => {
   const r = computeScores(seed, ODD)
   close(r.overall, 0)
   close(r.file.get('D13'), 0)
+})
+
+console.log('Faculty and criteria')
+
+check('replacePerson ignores honorifics, keeps notes, drops duplicates', () => {
+  assert.equal(replacePerson('Mr. Sharath', 'Sharath', 'Sagar'), 'Sagar')
+  assert.equal(replacePerson('Akshatha M (proposed)', 'Akshatha M', 'Gagan P'), 'Gagan P (proposed)')
+  assert.equal(replacePerson('Bhavya H S, Shalini M K', 'Bhavya H S', 'Shalini M K'), 'Shalini M K')
+  assert.equal(replacePerson('C7 Team', 'Akshatha M', 'Gagan P'), 'C7 Team')
+})
+
+check('rename updates maintainer, previous maintainer, presenter and coordinator', () => {
+  const st = initialState()
+  const codes = applyRename(st, 'Akshatha M', 'Akshatha M R')
+  assert.equal(st.files.find((f) => f.code === 'D32')!.maintainer, 'Akshatha M R (proposed)')
+  assert.ok(codes.includes('A03') && codes.includes('D32'))
+  assert.equal(st.criteria.find((c) => c.id === 'C7')?.coordinator, 'Akshatha M R')
+  assert.ok(st.files.every((f) => !/\bAkshatha M\b(?! R)/.test(f.maintainer + f.presentedIn.person)))
+})
+
+check('reassign moves only ticked files and can record the previous maintainer', () => {
+  const st = initialState()
+  const codes = applyReassign(
+    st,
+    [
+      { fileId: 'A13', from: 'Akshatha M', to: 'Gagan P' },
+      { fileId: 'A01', from: 'Akshatha M', to: 'Gagan P' }, // A01 is not hers: skipped
+    ],
+    true,
+  )
+  assert.deepEqual(codes, ['A13'])
+  const a13 = st.files.find((f) => f.code === 'A13')!
+  assert.equal(a13.maintainer, 'Gagan P')
+  assert.equal(a13.previousMaintainer, 'Akshatha M')
+  assert.equal(st.files.find((f) => f.code === 'A14')!.maintainer, 'Akshatha M')
+})
+
+check('bulk criteria sets presented-in and edits related criteria, skipping containers', () => {
+  const st = initialState()
+  const codes = applyBulkCriteria(st, ['D01', 'D02', 'D13'], { criteria: 'C8', addRelated: ['C2', 'C1'], removeRelated: ['C9'] })
+  assert.deepEqual(codes, ['D01', 'D02'])
+  const d01 = st.files.find((f) => f.code === 'D01')!
+  assert.equal(d01.presentedIn.criteria, 'C8')
+  assert.equal(d01.presentedIn.person, 'Meenakshi H') // untouched
+  assert.deepEqual(d01.relatedCriteria, ['C1', 'C2'])
+})
+
+check('seed has 31 faculty and C1 to C9 with coordinators', () => {
+  const st = initialState()
+  assert.equal(st.faculty.length, 31)
+  assert.deepEqual(st.criteria.map((c) => c.id), ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9'])
+  assert.ok(st.criteria.every((c) => c.title && c.coordinator))
 })
 
 console.log(`\nAll ${passed} checks passed.`)

@@ -46,6 +46,20 @@ export interface ChecklistItem {
   template?: string
 }
 
+export interface Faculty {
+  id: string
+  name: string
+  designation: string
+  active: boolean
+}
+
+export interface Criterion {
+  /** C1 to C9. */
+  id: string
+  title: string
+  coordinator: string
+}
+
 export interface Period {
   ay: string
   sem: Semester
@@ -58,6 +72,8 @@ export interface ActivityEntry {
   who: string
   what: string
   fileId?: string
+  /** Files touched by a bulk action. */
+  fileCodes?: string[]
 }
 
 export interface AppState {
@@ -66,6 +82,8 @@ export interface AppState {
   domains: Domain[]
   files: DeptFile[]
   items: ChecklistItem[]
+  faculty: Faculty[]
+  criteria: Criterion[]
   /** Keyed `${itemId}|${ay}|${sem}`. A missing key means not completed. */
   statuses: Record<string, ItemStatus>
   /** Newest first, capped at ACTIVITY_LIMIT. */
@@ -102,4 +120,23 @@ export interface NewFileInput {
   domain: DomainId
   title: string
   maintainer?: string
+}
+
+export type FacultyPatch = Partial<Pick<Faculty, 'designation' | 'active'>>
+export type CriterionPatch = Partial<Pick<Criterion, 'title' | 'coordinator'>>
+
+/** One ticked row in "reassign files": move `fileId` from maintainer `from` to `to`. */
+export interface ReassignChange {
+  fileId: string
+  from: string
+  to: string
+}
+
+/** Fields left undefined are not changed. */
+export interface CriteriaBulkPatch {
+  criteria?: string
+  person?: string
+  proposed?: boolean
+  addRelated?: string[]
+  removeRelated?: string[]
 }
