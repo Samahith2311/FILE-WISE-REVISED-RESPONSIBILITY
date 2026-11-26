@@ -6,3 +6,5 @@ dist
 __pycache__
 *.tsbuildinfo
 !.env.example
+Faculty_Login_Details.xlsx
+Claude outputs/
