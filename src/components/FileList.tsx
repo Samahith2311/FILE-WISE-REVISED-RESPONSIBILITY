@@ -31,7 +31,7 @@ export function FileList({ files, query = '' }: { files: DeptFile[]; query?: str
   })
 
   if (rows.length === 0) {
-    return <p className="px-4 py-6 text-center text-sm text-stone-500">No files match "{query}".</p>
+    return <p className="px-4 py-6 text-center text-sm text-stone-600">No files match "{query}".</p>
   }
 
   return (
@@ -67,28 +67,28 @@ function FileRow({
   const panelId = `file-panel-${file.id}`
 
   return (
-    <li>
+    <li className={`border-l-4 transition-colors ${expanded ? 'border-l-navy' : 'border-l-transparent'}`}>
       <button
         type="button"
         onClick={() => setOpen(!expanded)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="grid w-full grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-none sm:grid-cols-[auto_minmax(0,1fr)_12rem_10rem_3.5rem]"
+        className="grid w-full grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-surface focus-visible:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange sm:grid-cols-[auto_minmax(0,1fr)_12rem_10rem_3.5rem]"
       >
         <Chevron open={expanded} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-stone-900">{file.code}</span>
+            <span className="font-serif text-lg font-bold text-navy-deep">{file.code}</span>
             {file.group && <Badge tone="outline">Part of {file.group}</Badge>}
             {file.container && <Badge>{childFiles ? `${childFiles.length} files` : 'Container'}</Badge>}
           </div>
-          <p className="truncate text-xs text-stone-500">
+          <p className="truncate text-xs text-stone-600">
             {file.title}
             {file.proposedTitle && <span className="italic"> (proposed part title)</span>}
           </p>
         </div>
-        <p className="col-start-2 truncate text-sm text-stone-600 sm:col-start-auto" title={file.maintainer}>
-          {file.maintainer || <span className="text-stone-400">No maintainer</span>}
+        <p className="col-start-2 truncate text-sm text-stone-700 sm:col-start-auto" title={file.maintainer}>
+          {file.maintainer || <span className="text-stone-500">No maintainer</span>}
         </p>
         <div className="col-start-2 sm:col-start-auto">
           <ProgressBar score={score} />
@@ -98,16 +98,16 @@ function FileRow({
       </button>
 
       <Collapse open={expanded}>
-        <div id={panelId} className="space-y-4 border-t border-stone-100 bg-stone-50/70 px-4 py-4 sm:pl-11">
+        <div id={panelId} className="space-y-4 border-t border-stone-200 bg-surface px-4 py-4 sm:pl-11">
           <FileDetails file={file} />
           {childFiles ? (
-            <div className="overflow-hidden rounded-md border border-stone-200 bg-white">
+            <div className="overflow-hidden rounded-md border border-l-4 border-stone-200 border-l-navy bg-white">
               <FileList files={childFiles} query={query} />
             </div>
           ) : (
             <section>
-              <h4 className="mb-2 text-sm font-semibold text-stone-700">
-                Checklist <span className="font-normal text-stone-500">({itemCount} items)</span>
+              <h4 className="mb-2 text-sm font-bold text-navy">
+                Checklist <span className="font-normal font-sans text-stone-600">({itemCount} items)</span>
               </h4>
               <Checklist items={items} fileId={file.id} />
             </section>

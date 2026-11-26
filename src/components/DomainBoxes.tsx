@@ -36,23 +36,23 @@ export function DomainBoxes() {
               onClick={() => toggle(d.id)}
               aria-expanded={active}
               aria-controls="domain-panel"
-              className={`rounded-lg border bg-white p-4 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 ${
-                active ? 'border-stone-900 ring-1 ring-stone-900' : 'border-stone-200 hover:border-stone-400'
+              className={`rounded-lg border border-l-4 bg-white p-4 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange focus-visible:ring-offset-2 ${
+                active ? 'border-orange shadow-md' : 'border-stone-200 border-l-navy hover:border-orange/60 hover:border-l-orange hover:shadow-md'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-md bg-stone-900 text-lg font-bold text-white">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-navy font-serif text-lg font-bold text-white">
                     {d.id}
                   </span>
-                  <div>
-                    <p className="font-semibold leading-tight">{d.name}</p>
-                    <p className="text-xs text-stone-500">
+                  <div className="min-w-0">
+                    <p className="font-serif font-bold leading-tight text-navy-deep">{d.name}</p>
+                    <p className="text-xs text-stone-600">
                       {d.range} &middot; {count} files
                     </p>
                   </div>
                 </div>
-                <Pct score={score} className="text-2xl" />
+                <Pct score={score} className="font-serif text-2xl" />
               </div>
               <ProgressBar score={score} className="mt-4" />
               <BandLabel score={score} className="mt-1 block" />
@@ -63,9 +63,9 @@ export function DomainBoxes() {
 
       <Collapse open={openDomain !== null}>
         {shown && (
-          <section id="domain-panel" className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
+          <section id="domain-panel" className="overflow-hidden rounded-lg border border-t-4 border-stone-200 border-t-navy bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
-              <h2 className="font-semibold">
+              <h2 className="font-bold text-navy">
                 {state.domains.find((d) => d.id === shown)?.name} files
               </h2>
               <div className="flex w-full gap-2 sm:w-auto">
