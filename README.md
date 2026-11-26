@@ -2,6 +2,10 @@
 
 Admin dashboard for tracking the department's accreditation (QAR / NBA) files. There are no physical files and no uploads. Each file has a checklist, and its completion is calculated from the checklist ticks.
 
+**Live site:** [file-tracking-dashboard.vercel.app](https://file-tracking-dashboard.vercel.app/)
+
+Hosted on Vercel (project `file-tracking-dashboard`) in Supabase mode. Every push to `main` redeploys it. Sign in with the email and password the department gave you; admins can edit, everyone else can only view. Accounts are created by the department, not through the site.
+
 Stack: Vite, React 19, TypeScript (strict), Tailwind CSS v4, framer-motion, and optionally Supabase.
 
 The app runs in one of two modes, set by `VITE_DATA_BACKEND` in `.env`:
@@ -88,7 +92,7 @@ Set up Supabase mode first (above). Then:
 
    **Never add the service role or secret key.** These values are built into files that every visitor downloads.
    On Vercel the build stops with an error if `VITE_DATA_BACKEND` is not `supabase`, if the URL or key is missing, or if the key is a secret key. Local mode and its mock accounts can never be deployed. Builds on your own computer are not checked.
-3. **Deploy.** Press Deploy and wait for the URL, for example `https://department-files.vercel.app`.
+3. **Deploy.** Press Deploy and wait for the URL. This project is live at `https://file-tracking-dashboard.vercel.app`.
 4. **Tell Supabase the address.** In Supabase, go to Authentication, then URL Configuration, and set the Site URL to the Vercel URL.
 
 Free Supabase projects pause after a week without activity, and the deployed app then cannot load data or sign in. Open the Supabase dashboard and press Restore to wake the project up; the data is kept.
