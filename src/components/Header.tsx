@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { useStore } from '../store'
 import type { Semester } from '../types'
-import { AddYearControl } from './AdminForms'
+import { BACKEND } from '../lib/supabase'
+import { AddYearControl, ExportButton } from './AdminForms'
 import { BandLabel, Badge, Button, Pct, ProgressBar } from './ui'
 
 const SEMESTERS: Semester[] = ['Odd', 'Even']
@@ -50,6 +51,7 @@ export function Header({ children }: { children?: ReactNode }) {
             ))}
           </div>
           {isAdmin && <AddYearControl />}
+          {isAdmin && BACKEND === 'local' && <ExportButton />}
         </div>
 
         <div className="w-44">

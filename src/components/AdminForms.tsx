@@ -102,3 +102,24 @@ export function AddFileForm({ domain, onDone }: { domain: DomainId; onDone: () =
     </form>
   )
 }
+
+/** Local mode only: downloads all data so it can be moved to Supabase (scripts/import_local_export.ts). */
+export function ExportButton() {
+  const { state } = useStore()
+  if (!state) return null
+
+  function download() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `department-files-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  return (
+    <Button variant="ghost" onClick={download}>
+      Export data (JSON)
+    </Button>
+  )
+}
