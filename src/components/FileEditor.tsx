@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { CRITERIA, STAFF } from '../data/staff'
+import { CRITERIA } from '../data/criteria'
 import { useStore } from '../store'
 import type { DeptFile, FilePatch } from '../types'
 import { Button, inputClass } from './ui'
@@ -15,12 +15,14 @@ function Label({ text, children, className = '' }: { text: string; children: Rea
 
 const STAFF_LIST_ID = 'staff-suggestions'
 
+/** Suggestions from the active faculty list. Free text is still allowed ("C1 Team"). */
 export function StaffDatalist() {
+  const { state } = useStore()
   return (
     <datalist id={STAFF_LIST_ID}>
-      {STAFF.map((s) => (
-        <option key={s} value={s} />
-      ))}
+      {state?.faculty
+        .filter((f) => f.active)
+        .map((f) => <option key={f.id} value={f.name} />)}
     </datalist>
   )
 }

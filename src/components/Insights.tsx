@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { CRITERIA } from '../data/staff'
+import { CRITERIA } from '../data/criteria'
 import { ATTENTION_THRESHOLD, average, roundScore } from '../lib/scoring'
 import { useStore } from '../store'
 import type { DeptFile } from '../types'

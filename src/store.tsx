@@ -5,12 +5,17 @@ import { repo } from './repo'
 import type {
   AppState,
   ChecklistItem,
+  CriteriaBulkPatch,
+  CriterionPatch,
   DeptFile,
+  Faculty,
+  FacultyPatch,
   FilePatch,
   ItemPatch,
   ItemStatus,
   NewFileInput,
   Period,
+  ReassignChange,
   User,
 } from './types'
 
@@ -24,6 +29,12 @@ export interface Actions {
   addFile(input: NewFileInput): Promise<DeptFile | undefined>
   deleteFile(fileId: string): Promise<void>
   addAcademicYear(ay: string): Promise<boolean>
+  addFaculty(name: string, designation: string): Promise<Faculty | undefined>
+  updateFaculty(facultyId: string, patch: FacultyPatch): Promise<boolean>
+  renameFaculty(facultyId: string, newName: string): Promise<boolean>
+  reassignFaculty(changes: ReassignChange[], recordPrevious: boolean): Promise<boolean>
+  updateCriterion(criterionId: string, patch: CriterionPatch): Promise<boolean>
+  bulkUpdateFileCriteria(fileIds: string[], patch: CriteriaBulkPatch): Promise<boolean>
 }
 
 interface Store {
@@ -109,6 +120,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (ok) setPeriod({ ay: ay.trim(), sem: 'Odd' })
         return ok
       },
+      addFaculty: (name, designation) => run((u) => repo.addFaculty(name, designation, u)),
+      updateFaculty: async (id, patch) => (await run((u) => repo.updateFaculty(id, patch, u).then(() => true))) ?? false,
+      renameFaculty: async (id, name) => (await run((u) => repo.renameFaculty(id, name, u).then(() => true))) ?? false,
+      reassignFaculty: async (changes, recordPrevious) =>
+        (await run((u) => repo.reassignFaculty(changes, recordPrevious, u).then(() => true))) ?? false,
+      updateCriterion: async (id, patch) => (await run((u) => repo.updateCriterion(id, patch, u).then(() => true))) ?? false,
+      bulkUpdateFileCriteria: async (ids, patch) =>
+        (await run((u) => repo.bulkUpdateFileCriteria(ids, patch, u).then(() => true))) ?? false,
     }),
     [run, period],
   )
