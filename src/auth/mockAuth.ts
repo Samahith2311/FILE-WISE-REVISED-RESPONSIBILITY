@@ -24,7 +24,7 @@ const ACCOUNTS: MockAccount[] = [
 ]
 
 /** Shown on the login screen in development builds only. */
-export const DEMO_ACCOUNTS = ACCOUNTS.map(({ username, password, role }) => ({ username, password, role }))
+export const DEMO_ACCOUNTS = /* @__PURE__ */ ACCOUNTS.map(({ username, password, role }) => ({ username, password, role }))
 
 const SESSION_KEY = 'dept-files:session'
 
