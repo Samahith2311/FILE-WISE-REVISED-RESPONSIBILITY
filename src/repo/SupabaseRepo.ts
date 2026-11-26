@@ -150,8 +150,14 @@ export class SupabaseRepo implements Repo {
     await this.rpc(actor, 'add_academic_year', { p_ay: ay })
   }
 
-  async addFaculty(_name: string, _designation: string, _actor: User): Promise<Faculty> {
-    throw new Error('Not implemented yet.')
+  async addFaculty(name: string, designation: string, actor: User): Promise<Faculty> {
+    this.guard(actor)
+    const clean = name.trim()
+    if (!clean) throw new Error('Enter a name.')
+    const row = await this.one<FacultyRow>(this.sb.from('faculty').insert({ name: clean, designation: designation.trim() }).select())
+    this.apply('faculty', row)
+    await this.log(actor, `Added faculty ${row.name}`)
+    return toFaculty(row)
   }
 
   async updateFaculty(_facultyId: string, _patch: FacultyPatch, _actor: User): Promise<void> {
