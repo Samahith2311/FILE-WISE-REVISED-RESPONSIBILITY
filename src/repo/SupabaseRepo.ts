@@ -171,8 +171,8 @@ export class SupabaseRepo implements Repo {
     await this.rpc(actor, 'rename_faculty', { p_faculty_id: facultyId, p_new_name: newName })
   }
 
-  async reassignFaculty(_changes: ReassignChange[], _recordPrevious: boolean, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async reassignFaculty(changes: ReassignChange[], recordPrevious: boolean, actor: User): Promise<void> {
+    await this.rpc(actor, 'reassign_faculty', { p_changes: changes, p_record_previous: recordPrevious })
   }
 
   async updateCriterion(_criterionId: string, _patch: CriterionPatch, _actor: User): Promise<void> {
