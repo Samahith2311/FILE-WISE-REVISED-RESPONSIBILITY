@@ -4,8 +4,8 @@ import { STATUS_LABELS, statusKey } from '../lib/scoring'
 import type { AppState, ChecklistItem, CriteriaBulkPatch, CriterionPatch, DeptFile, Domain, Faculty, FacultyPatch, FilePatch, ItemPatch, ItemStatus, NewFileInput, Period, ReassignChange, Semester, User } from '../types'
 import { STATE_VERSION } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
-import { FIELD_LABELS, itemChangeText } from './shared'
-import { filePatchToRow, itemPatchToRow, toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
+import { FIELD_LABELS, itemChangeText, newFile } from './shared'
+import { fileToRow, filePatchToRow, itemPatchToRow, toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
 const TABLES = ['academic_years', 'faculty', 'criteria', 'files', 'checklist_items', 'item_status', 'activity_log'] as const
 type Table = (typeof TABLES)[number]
 type Row = Record<string, unknown>
@@ -128,8 +128,13 @@ export class SupabaseRepo implements Repo {
     await this.log(actor, `Deleted checklist item "${item.label}" from ${file.code}`, file.id)
   }
 
-  async addFile(_input: NewFileInput, _actor: User): Promise<DeptFile> {
-    throw new Error('Not implemented yet.')
+  async addFile(input: NewFileInput, actor: User): Promise<DeptFile> {
+    this.guard(actor)
+    const file = newFile(input, this.cached().files)
+    const row = await this.one<FileRow>(this.sb.from('files').insert(fileToRow(file)).select())
+    this.apply('files', row)
+    await this.log(actor, `Added file ${row.code} "${row.title}"`, row.id)
+    return toFile(row)
   }
 
   async deleteFile(_fileId: string, _actor: User): Promise<void> {
