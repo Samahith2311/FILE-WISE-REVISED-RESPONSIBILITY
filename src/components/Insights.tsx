@@ -1,11 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { CRITERIA } from '../data/criteria'
+import { HONORIFIC, nameKey, splitPeople } from '../lib/faculty'
+import { BulkCriteriaEditor, CriterionForm } from './CriteriaAdmin'
 import { ATTENTION_THRESHOLD, average, roundScore } from '../lib/scoring'
 import { useStore } from '../store'
 import type { DeptFile } from '../types'
 import { BandLabel, Chevron, Collapse, Pct, ProgressBar } from './ui'
 
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+export function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
       <header className="border-b border-stone-200 px-4 py-3">
@@ -18,7 +20,7 @@ function Panel({ title, subtitle, children }: { title: string; subtitle?: string
 }
 
 /** Compact, non-expanding file line used by the summary views. */
-function FileLine({ file, score }: { file: DeptFile; score: number | null }) {
+export function FileLine({ file, score }: { file: DeptFile; score: number | null }) {
   return (
     <li className="grid grid-cols-[4.5rem_minmax(0,1fr)_3.5rem] items-center gap-x-3 px-4 py-2 sm:grid-cols-[4.5rem_minmax(0,1fr)_12rem_9rem_3.5rem]">
       <span className="font-bold">{file.code}</span>
@@ -38,7 +40,7 @@ function FileLine({ file, score }: { file: DeptFile; score: number | null }) {
 }
 
 /** Plain files only: containers (D13) repeat the A scores. */
-function useScoredFiles() {
+export function useScoredFiles() {
   const { state, scores } = useStore()
   return useMemo(
     () =>
@@ -70,7 +72,19 @@ export function NeedsAttention() {
   )
 }
 
-function Group({ title, meta, score, files }: { title: string; meta: string; score: number | null; files: Array<{ file: DeptFile; score: number | null }> }) {
+function Group({
+  title,
+  meta,
+  score,
+  files,
+  extra,
+}: {
+  title: string
+  meta: string
+  score: number | null
+  files: Array<{ file: DeptFile; score: number | null }>
+  extra?: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   return (
     <li>
@@ -92,6 +106,7 @@ function Group({ title, meta, score, files }: { title: string; meta: string; sco
         <Pct score={score} className="text-right" />
       </button>
       <Collapse open={open}>
+        {extra && <div className="border-t border-stone-100 bg-stone-50/70 px-4 py-3 sm:pl-11">{extra}</div>}
         <ul className="divide-y divide-stone-100 border-t border-stone-100 bg-stone-50/70">
           {files.map(({ file, score: s }) => (
             <FileLine key={file.id} file={file} score={s} />
@@ -103,38 +118,38 @@ function Group({ title, meta, score, files }: { title: string; meta: string; sco
 }
 
 export function CriteriaView() {
+  const { state, isAdmin } = useStore()
   const scored = useScoredFiles()
   return (
+    <div className="space-y-4">
+    {isAdmin && <BulkCriteriaEditor />}
     <Panel title="Criteria" subtitle="Files presented under each criterion. Related files count toward the criterion but not its score.">
       <ul className="divide-y divide-stone-200">
         {CRITERIA.map((c) => {
+          const criterion = state?.criteria.find((x) => x.id === c)
           const presented = scored.filter((x) => x.file.presentedIn.criteria === c)
           const related = scored.filter((x) => x.file.presentedIn.criteria !== c && x.file.relatedCriteria.includes(c))
           const presenters = [...new Set(presented.map((x) => x.file.presentedIn.person).filter(Boolean))]
           return (
             <Group
               key={c}
-              title={c}
-              meta={`${presented.length} presented, ${related.length} related${presenters.length ? ` · ${presenters.join(', ')}` : ''}`}
+              title={criterion?.title ? `${c} · ${criterion.title}` : c}
+              meta={`${criterion?.coordinator ? `Coordinator ${criterion.coordinator} · ` : ''}${presented.length} presented, ${related.length} related${presenters.length ? ` · ${presenters.join(', ')}` : ''}`}
               score={average(presented.map((x) => x.score))}
               files={[...presented, ...related]}
+              extra={isAdmin && criterion ? <CriterionForm key={`${criterion.title}|${criterion.coordinator}`} criterion={criterion} /> : undefined}
             />
           )
         })}
       </ul>
     </Panel>
+    </div>
   )
 }
 
-const HONORIFIC = /^(prof|mr|ms|mrs|dr)\.?\s+/i
-
 /** Splits "Bhavya H S, Shalini M K" into people and folds "Mr. Sharath" with "Sharath". */
 export function peopleOf(maintainer: string): Array<{ key: string; name: string }> {
-  return maintainer
-    .split(',')
-    .map((p) => p.replace(/\(.*?\)/g, '').trim())
-    .filter(Boolean)
-    .map((name) => ({ key: name.replace(HONORIFIC, '').toLowerCase(), name: name.replace(HONORIFIC, '') }))
+  return splitPeople(maintainer).map((p) => ({ key: nameKey(p), name: p.replace(/\(.*?\)/g, '').trim().replace(HONORIFIC, '') }))
 }
 
 export function PeopleView() {
