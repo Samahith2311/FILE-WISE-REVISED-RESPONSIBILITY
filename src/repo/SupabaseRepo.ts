@@ -94,8 +94,20 @@ export class SupabaseRepo implements Repo {
     await this.log(actor, `Marked "${item.label}" in ${file.code} as ${STATUS_LABELS[status]} (${period.ay} ${period.sem})`, file.id)
   }
 
-  async addItem(_fileId: string, _label: string, _actor: User): Promise<ChecklistItem> {
-    throw new Error('Not implemented yet.')
+  async addItem(fileId: string, label: string, actor: User): Promise<ChecklistItem> {
+    this.guard(actor)
+    const file = this.requireFile(fileId)
+    if (file.container) throw new Error(`${file.code} is a container and has no checklist.`)
+    const order = Math.max(0, ...this.cached().items.filter((i) => i.fileId === fileId).map((i) => i.order)) + 1
+    const row = await this.one<ItemRow>(
+      this.sb
+        .from('checklist_items')
+        .insert({ id: `${file.code}-${crypto.randomUUID().slice(0, 8)}`, file_id: fileId, sort_order: order, label: label.trim() })
+        .select(),
+    )
+    this.apply('checklist_items', row)
+    await this.log(actor, `Added checklist item "${row.label}" to ${file.code}`, fileId)
+    return toItem(row)
   }
 
   async updateItem(_itemId: string, _patch: ItemPatch, _actor: User): Promise<void> {
