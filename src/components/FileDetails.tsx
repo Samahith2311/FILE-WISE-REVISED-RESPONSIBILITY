@@ -1,0 +1,42 @@
+import type { ReactNode } from 'react'
+import type { DeptFile } from '../types'
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-stone-500">{label}</dt>
+      <dd className="mt-0.5 text-sm text-stone-800">{children}</dd>
+    </div>
+  )
+}
+
+const empty = <span className="text-stone-400">Not set</span>
+
+export function presentedInText(file: DeptFile): string {
+  const { criteria, person, proposed } = file.presentedIn
+  const text = [criteria, person].filter(Boolean).join(', ')
+  return text ? `${text}${proposed ? ' (proposed)' : ''}` : ''
+}
+
+/** Read-only file attributes. */
+export function FileDetails({ file }: { file: DeptFile }) {
+  return (
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="sm:col-span-2 lg:col-span-4">
+        <Field label="Title">
+          {file.title}
+          {file.proposedTitle && <span className="ml-1 text-xs italic text-stone-500">(proposed part title)</span>}
+        </Field>
+      </div>
+      <Field label="Maintainer">{file.maintainer || empty}</Field>
+      <Field label="Previous maintainer">{file.previousMaintainer || empty}</Field>
+      <Field label="Presented in">{presentedInText(file) || empty}</Field>
+      <Field label="Previous presentation">{file.previousPresentation || empty}</Field>
+      <Field label="Related criteria">{file.relatedCriteria.length ? file.relatedCriteria.join(', ') : empty}</Field>
+      <Field label="Physical location">{file.physicalLocation || empty}</Field>
+      <div className="sm:col-span-2">
+        <Field label="Notes">{file.notes ? <span className="whitespace-pre-wrap">{file.notes}</span> : empty}</Field>
+      </div>
+    </dl>
+  )
+}
