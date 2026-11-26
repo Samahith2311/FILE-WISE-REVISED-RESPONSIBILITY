@@ -4,7 +4,7 @@ import { STATUS_LABELS, statusKey } from '../lib/scoring'
 import type { AppState, ChecklistItem, CriteriaBulkPatch, CriterionPatch, DeptFile, Domain, Faculty, FacultyPatch, FilePatch, ItemPatch, ItemStatus, NewFileInput, Period, ReassignChange, Semester, User } from '../types'
 import { STATE_VERSION } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
-import { FIELD_LABELS, itemChangeText, newFile } from './shared'
+import { FIELD_LABELS, facultyChangeText, itemChangeText, newFile } from './shared'
 import { fileToRow, filePatchToRow, itemPatchToRow, toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
 const TABLES = ['academic_years', 'faculty', 'criteria', 'files', 'checklist_items', 'item_status', 'activity_log'] as const
 type Table = (typeof TABLES)[number]
@@ -160,8 +160,11 @@ export class SupabaseRepo implements Repo {
     return toFaculty(row)
   }
 
-  async updateFaculty(_facultyId: string, _patch: FacultyPatch, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async updateFaculty(facultyId: string, patch: FacultyPatch, actor: User): Promise<void> {
+    this.guard(actor)
+    const row = await this.one<FacultyRow>(this.sb.from('faculty').update(patch).eq('id', facultyId).select())
+    this.apply('faculty', row)
+    await this.log(actor, facultyChangeText(toFaculty(row), patch))
   }
 
   async renameFaculty(_facultyId: string, _newName: string, _actor: User): Promise<void> {
