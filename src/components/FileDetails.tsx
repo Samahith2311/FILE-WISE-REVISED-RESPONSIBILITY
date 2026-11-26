@@ -13,7 +13,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-const empty = <span className="text-stone-500">Not set</span>
+const empty = <span className="text-stone-600">Not set</span>
 
 export function presentedInText(file: DeptFile): string {
   const { criteria, person, proposed } = file.presentedIn

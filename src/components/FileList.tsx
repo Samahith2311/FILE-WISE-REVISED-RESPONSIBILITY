@@ -88,7 +88,7 @@ function FileRow({
           </p>
         </div>
         <p className="col-start-2 truncate text-sm text-stone-700 sm:col-start-auto" title={file.maintainer}>
-          {file.maintainer || <span className="text-stone-500">No maintainer</span>}
+          {file.maintainer || <span className="text-stone-600">No maintainer</span>}
         </p>
         <div className="col-start-2 sm:col-start-auto">
           <ProgressBar score={score} />
