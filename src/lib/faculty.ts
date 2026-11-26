@@ -8,7 +8,7 @@ import type { AppState, CriteriaBulkPatch, ReassignChange } from '../types'
 export const HONORIFIC = /^(prof|mr|ms|mrs|dr)\.?\s+/i
 
 export function nameKey(name: string): string {
-  return name.replace(/\(.*?\)/g, '').trim().replace(HONORIFIC, '').trim().toLowerCase()
+  return name.replace(/\([^)]*\)/g, '').trim().replace(HONORIFIC, '').trim().toLowerCase()
 }
 
 export function splitPeople(text: string): string[] {
@@ -30,7 +30,7 @@ export function replacePerson(text: string, from: string, to: string): string {
   const out: string[] = []
   for (const part of splitPeople(text)) {
     const key = nameKey(part)
-    const next = key === fromKey ? `${to.trim()}${/\s*\(.*?\)\s*$/.exec(part)?.[0] ?? ''}` : part
+    const next = key === fromKey ? `${to.trim()}${/\s*\([^)]*\)\s*$/.exec(part)?.[0] ?? ''}` : part
     if (key === fromKey && out.some((p) => nameKey(p) === toKey)) continue
     if (key !== fromKey && key === toKey && out.some((p) => nameKey(p) === toKey)) continue
     out.push(next)
@@ -44,6 +44,7 @@ type Draft = Pick<AppState, 'files' | 'criteria'>
 export function applyRename(s: Draft, oldName: string, newName: string): string[] {
   const codes: string[] = []
   for (const f of s.files) {
+    if (![f.maintainer, f.previousMaintainer, f.presentedIn.person].some((t) => hasPerson(t, oldName))) continue
     const before = JSON.stringify([f.maintainer, f.previousMaintainer, f.presentedIn.person])
     f.maintainer = replacePerson(f.maintainer, oldName, newName)
     f.previousMaintainer = replacePerson(f.previousMaintainer, oldName, newName)

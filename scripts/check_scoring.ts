@@ -165,6 +165,7 @@ check('replacePerson ignores honorifics, keeps notes, drops duplicates', () => {
   assert.equal(replacePerson('Akshatha M (proposed)', 'Akshatha M', 'Gagan P'), 'Gagan P (proposed)')
   assert.equal(replacePerson('Bhavya H S, Shalini M K', 'Bhavya H S', 'Shalini M K'), 'Shalini M K')
   assert.equal(replacePerson('C7 Team', 'Akshatha M', 'Gagan P'), 'C7 Team')
+  assert.equal(replacePerson('Gagan P ', 'Gagan P', 'Lokesh T P'), 'Lokesh T P') // pasted non-breaking space
 })
 
 check('rename updates maintainer, previous maintainer, presenter and coordinator', () => {

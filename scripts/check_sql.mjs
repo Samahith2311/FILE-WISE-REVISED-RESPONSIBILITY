@@ -83,6 +83,8 @@ assert.equal((await one(`select public.replace_person('Akshatha M (proposed)', '
 assert.equal((await one(`select public.replace_person('Bhavya H S, Shalini M K', 'Bhavya H S', 'Shalini M K') r`)).r, 'Shalini M K')
 assert.equal((await one(`select public.replace_person('C7 Team', 'Akshatha M', 'Gagan P') r`)).r, 'C7 Team')
 assert.equal((await one(`select public.name_key('Dr. Akshath M J (proposed)') r`)).r, 'akshath m j')
+assert.equal((await one(`select public.replace_person('Gagan P' || chr(160), 'Gagan P', 'Lokesh T P') r`)).r, 'Lokesh T P')
+await rejects(`insert into public.faculty (name) values ('Sharath')`, '23505') // same person as 'Mr. Sharath'
 ok('name helpers match the JS rules')
 
 // viewer is refused by the database
@@ -130,6 +132,8 @@ await as(ADMIN, async () => {
   assert.equal(log.what, 'Renamed faculty Akshatha M to Akshatha M R (3 files updated)')
   assert.deepEqual(log.file_codes, ['D32', 'A13', 'A14'])
   await rejects(`select public.rename_faculty((select id from public.faculty where name='Gagan P'), 'sharath')`, '23505')
+  await db.exec(`select public.rename_faculty((select id from public.faculty where name='Akshatha M R'), 'Akshatha M R')`)
+  assert.equal((await one(`select what from public.activity_log order by id desc limit 1`)).what, 'Renamed faculty Akshatha M R to Akshatha M R (0 files updated)')
 
   await db.exec(`select public.reassign_faculty('[{"fileId":"A13","from":"Akshatha M R","to":"Gagan P"},{"fileId":"D03","from":"Akshatha M R","to":"Gagan P"}]', true)`)
   const a13 = await one(`select maintainer, previous_maintainer from public.files where id='A13'`)
