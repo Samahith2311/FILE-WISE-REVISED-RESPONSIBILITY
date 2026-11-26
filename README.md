@@ -80,7 +80,9 @@ To go back to local mode, set `VITE_DATA_BACKEND=local` and restart.
 
 - **Swap points.** `src/repo/index.ts` and `src/auth/index.ts` pick `LocalRepo` and `MockAuth`, or `SupabaseRepo` and `SupabaseAuth`, from `VITE_DATA_BACKEND`. No component knows which one is in use.
 - **Security.** Every table has row-level security. Signed-in users can read; only `public.is_admin()` (role `admin` in `profiles`) can insert, update or delete. Users can read only their own profile row and cannot change any role.
-- **Bulk actions.** Renaming faculty, reassigning files, bulk criteria edits and adding a year are Postgres functions (`rename_faculty`, `reassign_faculty`, `bulk_update_file_criteria`, `add_academic_year`). Each runs as one transaction and writes its own activity-log row. Other edits are a single write followed by a log insert.
+- **Bulk actions.** Renaming faculty, reassigning files, bulk criteria edits and adding a year are Postgres functions (`rename_faculty`, `reassign_faculty`, `bulk_update_file_criteria`, `add_academic_year`). Each runs as one transaction and writes one summary row to the activity log. Every other edit is a single request.
+- **Activity log.** The database writes the log, not the app. Triggers on files, checklist items, statuses, faculty, criteria and years add one row per edit, in the same transaction as the edit. If the log row cannot be written, the edit is rolled back too. The wording is the same as in local mode. Bulk functions turn the triggers off for their own changes, and deleting a file logs only the file, not its items and statuses. SQL run without a signed-in user (the seed, the import, the SQL Editor) is not logged.
+- **The log cannot be changed from the app.** Rows are added only by `private.log_activity`, in the `private` schema that the API does not expose, so it cannot be called through REST or `rpc()`. Signed-in users can read the log. Nobody, admin included, can insert, edit or delete log rows through the API. Do not add `private` to the exposed schemas under Project Settings, then API.
 - **Live updates.** The tables are in the `supabase_realtime` publication. `SupabaseRepo` applies each `postgres_changes` event to its cached state. After every reconnect or channel error it reloads everything, so nothing is missed. The screen changes only after Supabase confirms a write; failures show the usual error message.
 - **Sign-out** closes the realtime channel and drops the cached data.
 
@@ -94,9 +96,9 @@ scripts/
   import_local_export.ts   local export JSON -> SQL that replaces the database's file data
   sql_from_state.ts        shared SQL writer for the two scripts above
   check_scoring.ts         scoring, faculty and seed checks
-  check_sql.mjs            migrations, RLS, RPC and seed checks on PGlite
+  check_sql.mjs            migrations, RLS, RPC, activity-log and seed checks on PGlite
 supabase/
-  migrations/              schema, is_admin, RLS policies, RPCs, realtime publication
+  migrations/              schema, is_admin, RLS policies, RPCs, realtime publication, log triggers
   seed.sql                 generated starting data
 src/
   types.ts                 data model
