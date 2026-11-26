@@ -1,8 +1,53 @@
 @import "tailwindcss";
 
+/* Self-hosted fonts (bundled by Vite, served from our own origin; no CSP change). */
+@import "@fontsource/merriweather/latin-600.css";
+@import "@fontsource/merriweather/latin-700.css";
+@import "@fontsource/merriweather-sans/latin-300.css";
+@import "@fontsource/merriweather-sans/latin-400.css";
+@import "@fontsource/merriweather-sans/latin-600.css";
+
+/*
+ * MIT Mysore brand tokens (from mitmysore.in). Every colour the app uses for the brand lives here.
+ * Contrast on white: navy 10.3:1, navy-deep 20:1, amber-ink 6.1:1, band-red 6.5:1.
+ * White on orange is only 3.4:1, so orange is for accents, borders and focus rings, never behind white text.
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Merriweather Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Merriweather", Georgia, "Times New Roman", serif;
+
+  --color-navy: #29398a;
+  --color-navy-deep: #00062b;
+  --color-orange: #f35728;
+  --color-amber: #ffa100;
+  --color-gold: #fec42d;
+  --color-surface: #f7f7f7;
+
+  /* Score bands. Text variants are darker where the bar colour fails AA as text. */
+  --color-band-green: #059669;
+  --color-band-green-ink: #047857;
+  --color-band-amber-ink: #8f5500;
+  --color-band-red: #b91c1c;
 }
 
-html { -webkit-font-smoothing: antialiased; }
-body { @apply bg-stone-50 text-stone-900; }
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-surface font-sans text-navy-deep;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+}
