@@ -11,6 +11,7 @@
     "check:scoring": "tsx scripts/check_scoring.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
     "framer-motion": "^14.14.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
