@@ -1,5 +1,6 @@
 import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
 import seed from '../data/seed.json'
+import { nameKey } from '../lib/faculty'
 import { STATUS_LABELS, statusKey } from '../lib/scoring'
 import type {
   AppState,
@@ -72,6 +73,13 @@ export class SupabaseRepo implements Repo {
   private loading: Promise<AppState> | null = null
   private channel: RealtimeChannel | null = null
   private readonly listeners = new Set<(state: AppState) => void>()
+  /** Bumped on sign-out; results of fetches started before that are dropped. */
+  private epoch = 0
+  /** Only the newest fetch may replace the state. */
+  private fetchSeq = 0
+  /** Realtime changes received while a fetch runs, replayed onto its result. */
+  private buffer: Array<[Table, object | null, object]> | null = null
+  private emitTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(private readonly sb: SupabaseClient) {
     // Sign-out closes the realtime channel and drops the cached data.
@@ -81,12 +89,20 @@ export class SupabaseRepo implements Repo {
   }
 
   load(): Promise<AppState> {
+    this.openChannel()
     if (this.state) return Promise.resolve(this.state)
     if (!this.loading) {
-      this.openChannel()
-      this.loading = this.fetchAll()
-        .then((s) => (this.state = s))
-        .finally(() => (this.loading = null))
+      const epoch = this.epoch
+      const run = async (): Promise<AppState> => {
+        // A newer fetch (e.g. the reload on SUBSCRIBED) may supersede ours; wait for a state.
+        while (!this.state && epoch === this.epoch) await this.snapshot()
+        if (!this.state) throw new Error('Signed out.')
+        return this.state
+      }
+      const loading: Promise<AppState> = run().finally(() => {
+        if (this.loading === loading) this.loading = null
+      })
+      this.loading = loading
     }
     return this.loading
   }
@@ -187,6 +203,7 @@ export class SupabaseRepo implements Repo {
     this.guard(actor)
     const clean = name.trim()
     if (!clean) throw new Error('Enter a name.')
+    if (this.cached().faculty.some((f) => nameKey(f.name) === nameKey(clean))) throw new Error(`${clean} is already in the faculty list.`)
     const row = await this.one<FacultyRow>(this.sb.from('faculty').insert({ name: clean, designation: designation.trim() }).select())
     this.apply('faculty', row)
     await this.log(actor, `Added faculty ${row.name}`)
@@ -300,23 +317,44 @@ export class SupabaseRepo implements Repo {
     }
   }
 
+  /** Pages until an empty page, so a project max_rows below PAGE cannot cut the data short. */
   private async all<T>(table: Table, order: string[], columns = '*'): Promise<T[]> {
     const rows: T[] = []
-    for (let from = 0; ; from += PAGE) {
+    for (;;) {
       let query = this.sb.from(table).select(columns)
       for (const column of order) query = query.order(column)
-      const { data, error } = await query.range(from, from + PAGE - 1)
+      const { data, error } = await query.range(rows.length, rows.length + PAGE - 1)
       if (error) fail(error)
+      if (data.length === 0) return rows
       rows.push(...(data as T[]))
-      if (data.length < PAGE) return rows
+    }
+  }
+
+  /**
+   * Fetches everything and makes it the state, then replays realtime changes that
+   * arrived meanwhile (each carries the full new row, so replaying in order is safe).
+   * Returns null when a newer fetch or a sign-out made this result stale.
+   */
+  private async snapshot(): Promise<AppState | null> {
+    const seq = ++this.fetchSeq
+    const epoch = this.epoch
+    this.buffer ??= []
+    try {
+      const fresh = await this.fetchAll()
+      if (seq !== this.fetchSeq || epoch !== this.epoch) return null
+      const events = this.buffer ?? []
+      this.buffer = null
+      this.state = events.reduce((s, [table, row, old]) => change(s, table, row, old), fresh)
+      return this.state
+    } catch (e) {
+      if (seq === this.fetchSeq) this.buffer = null
+      throw e
     }
   }
 
   private async reload(): Promise<void> {
     try {
-      if (this.loading) await this.loading
-      this.state = await this.fetchAll()
-      this.emit()
+      if (await this.snapshot()) this.emit()
     } catch (e) {
       console.error('Reload from Supabase failed', e)
     }
@@ -339,74 +377,90 @@ export class SupabaseRepo implements Repo {
 
   private async close(): Promise<void> {
     const channel = this.channel
+    this.epoch++
+    this.fetchSeq++
     this.channel = null
     this.state = null
+    this.loading = null
+    this.buffer = null
     if (channel) await this.sb.removeChannel(channel)
   }
 
-  /**
-   * Applies one row change to the cached state and notifies listeners.
-   * `row` is the new row, or null for a delete (then `old` holds the primary key).
-   * Applying the same change twice (our write, then its realtime echo) is harmless.
-   */
+  /** Applies one confirmed write or realtime event to the cached state, and notifies listeners. */
   private apply(table: Table, row: object | null, old: object = {}): void {
-    const s = this.state
-    if (!s) return
-    const key = (row ?? old) as Row
-    const id = String(key.id)
-    let next: AppState
-    switch (table) {
-      case 'files': {
-        const files = replaceById(s.files, row && toFile(row as unknown as FileRow), id).sort((a, b) => a.order - b.order)
-        const gone = row ? [] : s.items.filter((i) => i.fileId === id).map((i) => i.id)
-        next = { ...s, files, items: row ? s.items : s.items.filter((i) => i.fileId !== id), statuses: dropStatuses(s.statuses, gone) }
-        break
-      }
-      case 'checklist_items': {
-        const items = replaceById(s.items, row && toItem(row as unknown as ItemRow), id).sort((a, b) => a.order - b.order)
-        next = { ...s, items, statuses: row ? s.statuses : dropStatuses(s.statuses, [id]) }
-        break
-      }
-      case 'faculty':
-        next = { ...s, faculty: replaceById(s.faculty, row && toFaculty(row as unknown as FacultyRow), id).sort((a, b) => a.name.localeCompare(b.name)) }
-        break
-      case 'criteria':
-        next = {
-          ...s,
-          criteria: replaceById(s.criteria, row && toCriterion(row as unknown as CriterionRow), id).sort(
-            (a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)),
-          ),
-        }
-        break
-      case 'item_status': {
-        const k = statusKey(String(key.item_id), { ay: String(key.ay), sem: key.sem as Semester })
-        const statuses = { ...s.statuses }
-        if (row) statuses[k] = (row as StatusRow).status
-        else delete statuses[k]
-        next = { ...s, statuses }
-        break
-      }
-      case 'academic_years': {
-        const ay = String(key.ay)
-        const rest = s.academicYears.filter((y) => y !== ay)
-        next = { ...s, academicYears: row ? [...rest, ay].sort() : rest }
-        break
-      }
-      case 'activity_log': {
-        const entry = row && toActivity(row as unknown as ActivityRow)
-        const rest = s.activity.filter((a) => a.id !== id)
-        next = { ...s, activity: entry ? [entry, ...rest].sort((a, b) => b.at.localeCompare(a.at)).slice(0, ACTIVITY_LIMIT) : rest }
-        break
-      }
-    }
-    this.state = next
-    for (const l of this.listeners) l(next)
+    this.buffer?.push([table, row, old])
+    if (!this.state) return
+    this.state = change(this.state, table, row, old)
+    this.scheduleEmit()
+  }
+
+  /** Coalesces bursts of events (bulk actions, imports) into one render. */
+  private scheduleEmit(): void {
+    this.emitTimer ??= setTimeout(() => {
+      this.emitTimer = null
+      this.emit()
+    }, 30)
   }
 
   private emit(): void {
     const s = this.state
     if (s) for (const l of this.listeners) l(s)
   }
+}
+
+/**
+ * Returns the state with one row change applied. `row` is the new row, or null for a
+ * delete (then `old` holds the primary key). Applying a change twice is harmless.
+ */
+function change(s: AppState, table: Table, row: object | null, old: object): AppState {
+  const key = (row ?? old) as Row
+  const id = String(key.id)
+  let next: AppState
+  switch (table) {
+    case 'files': {
+      const files = replaceById(s.files, row && toFile(row as unknown as FileRow), id).sort((a, b) => a.order - b.order)
+      const gone = row ? [] : s.items.filter((i) => i.fileId === id).map((i) => i.id)
+      next = { ...s, files, items: row ? s.items : s.items.filter((i) => i.fileId !== id), statuses: dropStatuses(s.statuses, gone) }
+      break
+    }
+    case 'checklist_items': {
+      const items = replaceById(s.items, row && toItem(row as unknown as ItemRow), id).sort((a, b) => a.order - b.order)
+      next = { ...s, items, statuses: row ? s.statuses : dropStatuses(s.statuses, [id]) }
+      break
+    }
+    case 'faculty':
+      next = { ...s, faculty: replaceById(s.faculty, row && toFaculty(row as unknown as FacultyRow), id).sort((a, b) => a.name.localeCompare(b.name)) }
+      break
+    case 'criteria':
+      next = {
+        ...s,
+        criteria: replaceById(s.criteria, row && toCriterion(row as unknown as CriterionRow), id).sort(
+          (a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)),
+        ),
+      }
+      break
+    case 'item_status': {
+      const k = statusKey(String(key.item_id), { ay: String(key.ay), sem: key.sem as Semester })
+      const statuses = { ...s.statuses }
+      if (row) statuses[k] = (row as StatusRow).status
+      else delete statuses[k]
+      next = { ...s, statuses }
+      break
+    }
+    case 'academic_years': {
+      const ay = String(key.ay)
+      const rest = s.academicYears.filter((y) => y !== ay)
+      next = { ...s, academicYears: row ? [...rest, ay].sort() : rest }
+      break
+    }
+    case 'activity_log': {
+      const entry = row && toActivity(row as unknown as ActivityRow)
+      const rest = s.activity.filter((a) => a.id !== id)
+      next = { ...s, activity: entry ? [entry, ...rest].sort((a, b) => b.at.localeCompare(a.at)).slice(0, ACTIVITY_LIMIT) : rest }
+      break
+    }
+  }
+  return next
 }
 
 function replaceById<T extends { id: string }>(list: T[], item: T | null, id: string): T[] {
