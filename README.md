@@ -76,6 +76,25 @@ To go back to local mode, set `VITE_DATA_BACKEND=local` and restart.
 2. Run `npm run import:local -- path/to/department-files-export-YYYY-MM-DD.json`. It writes a `.sql` file next to the export.
 3. Run that SQL in the Supabase SQL Editor, after step 2 of the setup instead of `seed.sql`. **It replaces all file data in the database:** years, faculty, criteria, files, checklists, statuses and the activity log. Profiles and accounts are kept.
 
+## Deploy on Vercel
+
+Set up Supabase mode first (above). Then:
+
+1. **Import the repo.** In Vercel, choose Add New, then Project, and import this GitHub repository. `vercel.json` already sets the framework (Vite), the build command (`npm run build`), the output folder (`dist`), the rewrite of every route to `index.html`, and the security headers.
+2. **Set the environment variables.** Under Environment Variables, add:
+   - `VITE_DATA_BACKEND` = `supabase`
+   - `VITE_SUPABASE_URL` = the Project URL from Supabase (Project Settings, then API Keys)
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` = the publishable (anon) key
+
+   **Never add the service role or secret key.** These values are built into files that every visitor downloads.
+   On Vercel the build stops with an error if `VITE_DATA_BACKEND` is not `supabase`, if the URL or key is missing, or if the key is a secret key. Local mode and its mock accounts can never be deployed. Builds on your own computer are not checked.
+3. **Deploy.** Press Deploy and wait for the URL, for example `https://department-files.vercel.app`.
+4. **Tell Supabase the address.** In Supabase, go to Authentication, then URL Configuration, and set the Site URL to the Vercel URL.
+
+Free Supabase projects pause after a week without activity, and the deployed app then cannot load data or sign in. Open the Supabase dashboard and press Restore to wake the project up; the data is kept.
+
+The Content-Security-Policy allows only the app itself and `https://*.supabase.co` / `wss://*.supabase.co`. `npm run preview` sends the same headers, so you can test a build under them locally.
+
 ## How Supabase mode works
 
 - **Swap points.** `src/repo/index.ts` and `src/auth/index.ts` pick `LocalRepo` and `MockAuth`, or `SupabaseRepo` and `SupabaseAuth`, from `VITE_DATA_BACKEND`. No component knows which one is in use.
