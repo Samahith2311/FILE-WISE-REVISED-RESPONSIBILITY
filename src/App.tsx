@@ -3,13 +3,19 @@ import { useState, type ReactNode } from 'react'
 import { ActivityLog } from './components/ActivityLog'
 import { DomainBoxes } from './components/DomainBoxes'
 import { Header } from './components/Header'
+import { CriteriaView, NeedsAttention, PeopleView } from './components/Insights'
 import { LoginScreen } from './components/LoginScreen'
+import { QarSheet } from './components/QarSheet'
 import { useStore } from './store'
 
-type View = 'files' | 'activity'
+type View = 'files' | 'attention' | 'criteria' | 'people' | 'qar' | 'activity'
 
 const VIEWS: Array<{ id: View; label: string; render: () => ReactNode }> = [
   { id: 'files', label: 'Files', render: () => <DomainBoxes /> },
+  { id: 'attention', label: 'Needs attention', render: () => <NeedsAttention /> },
+  { id: 'criteria', label: 'Criteria', render: () => <CriteriaView /> },
+  { id: 'people', label: 'People', render: () => <PeopleView /> },
+  { id: 'qar', label: 'QAR sheet', render: () => <QarSheet /> },
   { id: 'activity', label: 'Activity log', render: () => <ActivityLog /> },
 ]
 
@@ -40,7 +46,7 @@ export default function App() {
           ))}
         </nav>
       </Header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 print:max-w-none print:p-0">
         {state ? current.render() : <p className="text-sm text-stone-500">Loading files</p>}
       </main>
       {error && (
