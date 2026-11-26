@@ -4,7 +4,8 @@ import { statusKey } from '../lib/scoring'
 import type { AppState, ChecklistItem, CriteriaBulkPatch, CriterionPatch, DeptFile, Domain, Faculty, FacultyPatch, FilePatch, ItemPatch, ItemStatus, NewFileInput, Period, ReassignChange, Semester, User } from '../types'
 import { STATE_VERSION } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
-import { toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
+import { FIELD_LABELS } from './shared'
+import { filePatchToRow, toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
 const TABLES = ['academic_years', 'faculty', 'criteria', 'files', 'checklist_items', 'item_status', 'activity_log'] as const
 type Table = (typeof TABLES)[number]
 type Row = Record<string, unknown>
@@ -64,8 +65,15 @@ export class SupabaseRepo implements Repo {
     }
   }
 
-  async updateFile(_fileId: string, _patch: FilePatch, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async updateFile(fileId: string, patch: FilePatch, actor: User): Promise<void> {
+    const keys = Object.keys(patch) as Array<keyof FilePatch>
+    if (keys.length === 0) return
+    this.guard(actor)
+    const row = await this.one<FileRow>(
+      this.sb.from('files').update({ ...filePatchToRow(patch), updated_at: new Date().toISOString() }).eq('id', fileId).select(),
+    )
+    this.apply('files', row)
+    await this.log(actor, `Edited ${keys.map((k) => FIELD_LABELS[k]).join(', ')} of ${row.code}`, fileId)
   }
 
   async setStatus(_itemId: string, _period: Period, _status: ItemStatus, _actor: User): Promise<void> {
@@ -121,6 +129,25 @@ export class SupabaseRepo implements Repo {
   }
 
   // ---------------------------------------------------------------------------
+
+  private guard(actor: User): void {
+    if (actor.role !== 'admin') throw new PermissionError()
+  }
+
+  /** Runs one write and returns the saved row. No row back means RLS hid it or it was gone. */
+  private async one<T>(query: PromiseLike<{ data: T[] | null; error: DbError | null }>): Promise<T> {
+    const { data, error } = await query
+    if (error) fail(error)
+    const row = data?.[0]
+    if (!row) throw new Error('Not saved: the record was not found or you do not have permission.')
+    return row
+  }
+
+  // shortcut: the write and its log row are two requests, not one transaction; move both into an RPC if a lost log row ever matters.
+  private async log(actor: User, what: string, fileId?: string): Promise<void> {
+    const row = await this.one<ActivityRow>(this.sb.from('activity_log').insert({ who: actor.name, what, file_id: fileId ?? null }).select())
+    this.apply('activity_log', row)
+  }
 
   private async fetchAll(): Promise<AppState> {
     const [years, faculty, criteria, files, items, statuses, activity] = await Promise.all([
