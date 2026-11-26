@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import re
 import sys
+import uuid
+from collections import Counter
 from pathlib import Path
 
 try:
@@ -35,6 +37,31 @@ D13 = {
     "code": "D13",
     "title": "Academic files",
     "note": "Container for A01 to A52. Its score is the average of the A files.",
+}
+
+# Department staff (from the staff list image), written the way the docx writes them.
+FACULTY = [
+    "Dr. Shivamurthy R C", "Dr. Murali S", "Dr. Akshath M J", "Santosh E", "Harish H K",
+    "Prasanna G", "Lokesh T P", "Akshatha M", "Malashree M S", "Bhavya H S", "Ambika K B",
+    "Michelle Dsouza", "Prakruthi S", "Meenakshi H", "Pallavi Y", "Mahalakshmi K R",
+    "Syeda Amira Hussaini", "Srikanth S P", "Shalini M K", "Nethravathi J", "Uzma Tabassum",
+    "Jayalakshmi Y T", "Monika H D", "Varshini M Acharya", "Prajwal K L", "Gagan P",
+    "Prajwal N S", "Prakruthi B N", "Ms. Amrutha B", "Mr. Sagar", "Mr. Sharath",
+]
+# Stable ids, so re-running the script does not change them.
+FACULTY_NS = uuid.UUID("6f1d3c2a-6b7e-4f0e-9a51-3d2b8c1e0a77")
+
+# NBA SAR criteria titles. Check them against the department's SAR and edit in the app.
+CRITERIA_TITLES = {
+    "C1": "Vision, Mission and Program Educational Objectives",
+    "C2": "Program Curriculum and Teaching-Learning Processes",
+    "C3": "Course Outcomes and Program Outcomes",
+    "C4": "Students' Performance",
+    "C5": "Faculty Information",
+    "C6": "Faculty Contributions",
+    "C7": "Facilities and Technical Support",
+    "C8": "Continuous Improvement",
+    "C9": "Student Support and Governance",
 }
 
 PROPOSED_TITLE = re.compile(r"\s*\(proposed part title\)\s*", re.IGNORECASE)
@@ -264,13 +291,25 @@ def main() -> None:
     if counts != expected:
         sys.exit(f"Row counts {counts} do not match expected {expected}")
 
+    faculty = [
+        {"id": str(uuid.uuid5(FACULTY_NS, name)), "name": name, "designation": "", "active": True}
+        for name in FACULTY
+    ]
+    # Coordinator = the person who presents most files under that criterion.
+    criteria = []
+    for cid, title in CRITERIA_TITLES.items():
+        people = Counter(f["presentedIn"]["person"] for f in files if f["presentedIn"]["criteria"] == cid and f["presentedIn"]["person"])
+        criteria.append({"id": cid, "title": title, "coordinator": people.most_common(1)[0][0] if people else ""})
+
     seed = {
-        "version": 1,
+        "version": 2,
         "source": "scripts/allocation.docx",
         "academicYear": "2026-27",
         "domains": DOMAINS,
         "files": files,
         "items": items,
+        "faculty": faculty,
+        "criteria": criteria,
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(seed, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
