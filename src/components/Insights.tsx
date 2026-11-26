@@ -9,10 +9,10 @@ import { BandLabel, Chevron, Collapse, Pct, ProgressBar } from './ui'
 
 export function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-t-4 border-stone-200 border-t-navy bg-white shadow-sm">
       <header className="border-b border-stone-200 px-4 py-3">
-        <h2 className="font-semibold">{title}</h2>
-        {subtitle && <p className="text-xs text-stone-500">{subtitle}</p>}
+        <h2 className="font-bold text-navy">{title}</h2>
+        {subtitle && <p className="text-xs text-stone-600">{subtitle}</p>}
       </header>
       {children}
     </section>
@@ -23,7 +23,7 @@ export function Panel({ title, subtitle, children }: { title: string; subtitle?:
 export function FileLine({ file, score }: { file: DeptFile; score: number | null }) {
   return (
     <li className="grid grid-cols-[4.5rem_minmax(0,1fr)_3.5rem] items-center gap-x-3 px-4 py-2 sm:grid-cols-[4.5rem_minmax(0,1fr)_12rem_9rem_3.5rem]">
-      <span className="font-bold">{file.code}</span>
+      <span className="font-serif font-bold text-navy-deep">{file.code}</span>
       <span className="truncate text-sm text-stone-600" title={file.title}>
         {file.title}
       </span>
@@ -60,7 +60,7 @@ export function NeedsAttention() {
   return (
     <Panel title="Needs attention" subtitle={`${list.length} files below ${ATTENTION_THRESHOLD}%, lowest first. Files with no scorable items are not listed.`}>
       {list.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-stone-500">Every scored file is at {ATTENTION_THRESHOLD}% or above.</p>
+        <p className="px-4 py-6 text-center text-sm text-stone-600">Every scored file is at {ATTENTION_THRESHOLD}% or above.</p>
       ) : (
         <ul className="divide-y divide-stone-100">
           {list.map(({ file, score }) => (
@@ -92,12 +92,12 @@ function Group({
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="grid w-full grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-x-3 px-4 py-3 text-left hover:bg-stone-50 sm:grid-cols-[auto_minmax(0,1fr)_10rem_3.5rem]"
+        className="grid w-full grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-x-3 px-4 py-3 text-left hover:bg-surface sm:grid-cols-[auto_minmax(0,1fr)_10rem_3.5rem]"
       >
         <Chevron open={open} />
         <span className="min-w-0">
           <span className="block font-semibold">{title}</span>
-          <span className="block text-xs text-stone-500">{meta}</span>
+          <span className="block text-xs text-stone-600">{meta}</span>
         </span>
         <span className="hidden sm:block">
           <ProgressBar score={score} />
@@ -106,8 +106,8 @@ function Group({
         <Pct score={score} className="text-right" />
       </button>
       <Collapse open={open}>
-        {extra && <div className="border-t border-stone-100 bg-stone-50/70 px-4 py-3 sm:pl-11">{extra}</div>}
-        <ul className="divide-y divide-stone-100 border-t border-stone-100 bg-stone-50/70">
+        {extra && <div className="border-t border-stone-100 bg-surface px-4 py-3 sm:pl-11">{extra}</div>}
+        <ul className="divide-y divide-stone-100 border-t border-stone-100 bg-surface">
           {files.map(({ file, score: s }) => (
             <FileLine key={file.id} file={file} score={s} />
           ))}

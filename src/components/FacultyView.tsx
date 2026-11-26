@@ -40,14 +40,14 @@ function FacultyRow({ person, maintains, presents }: { person: Faculty; maintain
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="grid w-full grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-x-3 px-4 py-3 text-left hover:bg-stone-50 sm:grid-cols-[auto_minmax(0,1fr)_14rem_3.5rem]"
+        className="grid w-full grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-x-3 px-4 py-3 text-left hover:bg-surface sm:grid-cols-[auto_minmax(0,1fr)_14rem_3.5rem]"
       >
         <Chevron open={open} />
         <span className="min-w-0">
           <span className="flex items-center gap-2 font-semibold">
             {person.name} {!person.active && <Badge tone="outline">Inactive</Badge>}
           </span>
-          <span className="block text-xs text-stone-500">{person.designation || 'No designation'}</span>
+          <span className="block text-xs text-stone-600">{person.designation || 'No designation'}</span>
         </span>
         <span className="hidden text-sm text-stone-600 sm:block">
           Maintains {maintains.length}, presents {presents}
@@ -55,10 +55,10 @@ function FacultyRow({ person, maintains, presents }: { person: Faculty; maintain
         <Pct score={score} className="text-right" />
       </button>
       <Collapse open={open}>
-        <div className="space-y-3 border-t border-stone-100 bg-stone-50/70 px-4 py-3 sm:pl-11">
+        <div className="space-y-3 border-t border-stone-100 bg-surface px-4 py-3 sm:pl-11">
           {isAdmin && <EditFacultyForm key={`${person.name}|${person.designation}|${person.active}`} person={person} />}
           {maintains.length === 0 ? (
-            <p className="text-sm text-stone-500">Maintains no files.</p>
+            <p className="text-sm text-stone-600">Maintains no files.</p>
           ) : isAdmin ? (
             <ReassignForm person={person} files={maintains} />
           ) : (
@@ -88,7 +88,7 @@ function AddFacultyForm() {
   }
 
   return (
-    <form onSubmit={add} className="grid gap-2 border-b border-stone-200 bg-stone-50 px-4 py-3 sm:grid-cols-[1fr_1fr_auto]">
+    <form onSubmit={add} className="grid gap-2 border-b border-stone-200 bg-surface px-4 py-3 sm:grid-cols-[1fr_1fr_auto]">
       <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" aria-label="New faculty name" required />
       <input
         className={inputClass}

@@ -94,12 +94,12 @@ export function BulkCriteriaEditor() {
           <Button variant="ghost" onClick={() => setTicked(new Set())} disabled={ticked.size === 0}>
             Clear ticks
           </Button>
-          <span className="text-sm text-stone-500">{ticked.size} ticked</span>
+          <span className="text-sm text-stone-600">{ticked.size} ticked</span>
         </div>
         <ul className="max-h-64 divide-y divide-stone-100 overflow-y-auto rounded-md border border-stone-200">
           {files.map((f) => (
             <li key={f.id}>
-              <label className="flex items-center gap-3 px-3 py-1.5 text-sm hover:bg-stone-50">
+              <label className="flex items-center gap-3 px-3 py-1.5 text-sm hover:bg-surface">
                 <input
                   type="checkbox"
                   checked={ticked.has(f.id)}
@@ -110,9 +110,9 @@ export function BulkCriteriaEditor() {
                     setTicked(next)
                   }}
                 />
-                <span className="w-14 font-semibold">{f.code}</span>
+                <span className="w-14 font-serif font-bold text-navy-deep">{f.code}</span>
                 <span className="min-w-0 flex-1 truncate text-stone-600">{f.title}</span>
-                <span className="hidden text-xs text-stone-500 sm:inline">
+                <span className="hidden text-xs text-stone-600 sm:inline">
                   {f.presentedIn.criteria || 'No criterion'}
                   {f.relatedCriteria.length ? ` · related ${f.relatedCriteria.join(', ')}` : ''}
                 </span>

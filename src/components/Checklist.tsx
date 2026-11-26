@@ -38,8 +38,8 @@ export function StatusChips({ value, onChange, label }: { value: ItemStatus; onC
             role="radio"
             aria-checked={on}
             onClick={() => !on && onChange(s)}
-            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 ${
-              on ? SELECTED[s] : 'border-stone-300 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-900'
+            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange ${
+              on ? SELECTED[s] : 'border-stone-300 bg-white text-stone-600 hover:border-orange hover:text-navy'
             }`}
           >
             {STATUS_LABELS[s]}
@@ -57,7 +57,7 @@ export function Checklist({ items, fileId }: { items: ChecklistItem[]; fileId: s
   return (
     <div className="space-y-2">
       {items.length === 0 ? (
-        <p className="text-sm text-stone-500">No checklist items yet.</p>
+        <p className="text-sm text-stone-600">No checklist items yet.</p>
       ) : (
         <ul className="divide-y divide-stone-100 rounded-md border border-stone-200 bg-white">
           {items.map((item) => {
@@ -84,7 +84,7 @@ function ItemText({ item }: { item: ChecklistItem }) {
       <p className="text-sm text-stone-800">
         {item.label} {item.repeating && <Badge tone="outline">Repeating</Badge>}
       </p>
-      {item.note && <p className="mt-0.5 whitespace-pre-wrap text-xs text-stone-500">{item.note}</p>}
+      {item.note && <p className="mt-0.5 whitespace-pre-wrap text-xs text-stone-600">{item.note}</p>}
     </div>
   )
 }
@@ -126,7 +126,7 @@ function AdminItem({ item, status, onStatus }: { item: ChecklistItem; status: It
         </div>
       </div>
       {editing && (
-        <form onSubmit={save} className="mt-3 space-y-2 rounded-md border border-stone-200 bg-stone-50 p-3">
+        <form onSubmit={save} className="mt-3 space-y-2 rounded-md border border-stone-200 bg-surface p-3">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-stone-600">Item</span>
             <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} required />

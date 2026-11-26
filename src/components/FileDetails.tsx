@@ -7,13 +7,13 @@ import { Button } from './ui'
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs text-stone-500">{label}</dt>
+      <dt className="text-xs text-stone-600">{label}</dt>
       <dd className="mt-0.5 text-sm text-stone-800">{children}</dd>
     </div>
   )
 }
 
-const empty = <span className="text-stone-400">Not set</span>
+const empty = <span className="text-stone-500">Not set</span>
 
 export function presentedInText(file: DeptFile): string {
   const { criteria, person, proposed } = file.presentedIn
@@ -62,7 +62,7 @@ function FileFields({ file }: { file: DeptFile }) {
       <div className="sm:col-span-2 lg:col-span-4">
         <Field label="Title">
           {file.title}
-          {file.proposedTitle && <span className="ml-1 text-xs italic text-stone-500">(proposed part title)</span>}
+          {file.proposedTitle && <span className="ml-1 text-xs italic text-stone-600">(proposed part title)</span>}
         </Field>
       </div>
       <Field label="Maintainer">{file.maintainer || empty}</Field>

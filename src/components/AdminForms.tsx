@@ -79,7 +79,7 @@ export function AddFileForm({ domain, onDone }: { domain: DomainId; onDone: () =
   }
 
   return (
-    <form onSubmit={add} className="grid gap-2 border-b border-stone-200 bg-stone-50 px-4 py-3 sm:grid-cols-[7rem_1fr_1fr_auto]">
+    <form onSubmit={add} className="grid gap-2 border-b border-stone-200 bg-surface px-4 py-3 sm:grid-cols-[7rem_1fr_1fr_auto]">
       <StaffDatalist />
       <input className={inputClass} value={code} onChange={(e) => setCode(e.target.value)} aria-label="File code" required />
       <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" aria-label="Title" required />
