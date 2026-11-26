@@ -37,9 +37,15 @@ begin
       previous_maintainer = public.replace_person(f.previous_maintainer, v_old, v_new),
       presented_person = public.replace_person(f.presented_person, v_old, v_new),
       updated_at = now()
-    where public.has_person(f.maintainer, v_old)
-       or public.has_person(f.previous_maintainer, v_old)
-       or public.has_person(f.presented_person, v_old)
+    -- Only rows whose text actually changes, so the count matches local mode.
+    where (
+      public.replace_person(f.maintainer, v_old, v_new),
+      public.replace_person(f.previous_maintainer, v_old, v_new),
+      public.replace_person(f.presented_person, v_old, v_new)
+    ) is distinct from (f.maintainer, f.previous_maintainer, f.presented_person)
+      and (public.has_person(f.maintainer, v_old)
+        or public.has_person(f.previous_maintainer, v_old)
+        or public.has_person(f.presented_person, v_old))
     returning f.code, f.sort_order, f.domain
   )
   select coalesce(array_agg(code order by array_position(array['D', 'A', 'P'], domain), sort_order), '{}')
