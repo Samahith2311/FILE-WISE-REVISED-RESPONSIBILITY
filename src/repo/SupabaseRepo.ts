@@ -119,8 +119,13 @@ export class SupabaseRepo implements Repo {
     await this.log(actor, itemChangeText(item, patch, file.code), file.id)
   }
 
-  async deleteItem(_itemId: string, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async deleteItem(itemId: string, actor: User): Promise<void> {
+    this.guard(actor)
+    const item = this.requireItem(itemId)
+    const file = this.requireFile(item.fileId)
+    const row = await this.one<ItemRow>(this.sb.from('checklist_items').delete().eq('id', itemId).select())
+    this.apply('checklist_items', null, row)
+    await this.log(actor, `Deleted checklist item "${item.label}" from ${file.code}`, file.id)
   }
 
   async addFile(_input: NewFileInput, _actor: User): Promise<DeptFile> {
