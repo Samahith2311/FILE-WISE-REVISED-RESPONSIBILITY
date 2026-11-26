@@ -146,8 +146,8 @@ export class SupabaseRepo implements Repo {
     await this.log(actor, `Deleted file ${file.code} "${file.title}"`)
   }
 
-  async addAcademicYear(_ay: string, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async addAcademicYear(ay: string, actor: User): Promise<void> {
+    await this.rpc(actor, 'add_academic_year', { p_ay: ay })
   }
 
   async addFaculty(_name: string, _designation: string, _actor: User): Promise<Faculty> {
@@ -210,6 +210,14 @@ export class SupabaseRepo implements Repo {
   private async log(actor: User, what: string, fileId?: string): Promise<void> {
     const row = await this.one<ActivityRow>(this.sb.from('activity_log').insert({ who: actor.name, what, file_id: fileId ?? null }).select())
     this.apply('activity_log', row)
+  }
+
+  /** Bulk actions: one Postgres transaction each (which also writes the log), then a full reload. */
+  private async rpc(actor: User, fn: string, args: Record<string, unknown>): Promise<void> {
+    this.guard(actor)
+    const { error } = await this.sb.rpc(fn, args)
+    if (error) fail(error)
+    await this.reload()
   }
 
   private async fetchAll(): Promise<AppState> {
