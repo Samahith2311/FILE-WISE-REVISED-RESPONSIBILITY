@@ -63,16 +63,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [period, setPeriod] = useState<Period>({ ay: '', sem: 'Odd' })
   const [error, setError] = useState<string | null>(null)
 
-  // Live data: initial load, then every change from this tab or any other.
+  // Live data for the signed-in user: initial load, then every change from anywhere.
+  // Loaded per sign-in because Supabase only returns rows to signed-in users.
+  const userId = user?.id
   useEffect(() => {
+    if (!userId) {
+      setState(null)
+      return
+    }
     let alive = true
+    const off = repo.subscribe((s) => alive && setState(s))
     repo.load().then((s) => alive && setState(s), (e) => alive && setError(message(e)))
-    const off = repo.subscribe((s) => setState(s))
     return () => {
       alive = false
       off()
     }
-  }, [])
+  }, [userId])
 
   useEffect(
     () =>
