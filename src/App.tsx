@@ -33,7 +33,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <div className="flex min-h-screen flex-col print:block print:min-h-0">
         <Header>
-          <nav className="flex overflow-x-auto" aria-label="Views">
+          <nav className="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Views">
             {VIEWS.map((v) => (
               <button
                 key={v.id}
