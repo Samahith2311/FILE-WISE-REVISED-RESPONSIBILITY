@@ -1,17 +1,23 @@
+import { applyBulkCriteria, applyReassign, applyRename, nameKey } from '../lib/faculty'
 import { STATUS_LABELS, statusKey } from '../lib/scoring'
 import type {
   ActivityEntry,
   AppState,
   ChecklistItem,
+  CriteriaBulkPatch,
+  CriterionPatch,
   DeptFile,
+  Faculty,
+  FacultyPatch,
   FilePatch,
   ItemPatch,
   ItemStatus,
   NewFileInput,
   Period,
+  ReassignChange,
   User,
 } from '../types'
-import { initialState, STATE_VERSION } from './initialState'
+import { initialState, migrate } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
 
 const STORAGE_KEY = 'dept-files:state:v1'
@@ -193,20 +199,87 @@ export class LocalRepo implements Repo {
     })
   }
 
+  async addFaculty(name: string, designation: string, actor: User): Promise<Faculty> {
+    let created: Faculty | undefined
+    await this.commit(actor, (s) => {
+      const clean = name.trim()
+      if (!clean) throw new Error('Enter a name.')
+      if (s.faculty.some((f) => nameKey(f.name) === nameKey(clean))) throw new Error(`${clean} is already in the faculty list.`)
+      created = { id: crypto.randomUUID(), name: clean, designation: designation.trim(), active: true }
+      s.faculty.push(created)
+      return { what: `Added faculty ${clean}` }
+    })
+    return created!
+  }
+
+  async updateFaculty(facultyId: string, patch: FacultyPatch, actor: User): Promise<void> {
+    await this.commit(actor, (s) => {
+      const f = this.requireFaculty(s, facultyId)
+      Object.assign(f, patch)
+      const parts = [
+        patch.designation !== undefined && `designation to "${f.designation}"`,
+        patch.active !== undefined && (f.active ? 'marked active' : 'marked inactive'),
+      ].filter(Boolean)
+      return { what: `Faculty ${f.name}: ${parts.join(', ') || 'edited'}` }
+    })
+  }
+
+  async renameFaculty(facultyId: string, newName: string, actor: User): Promise<void> {
+    await this.commit(actor, (s) => {
+      const f = this.requireFaculty(s, facultyId)
+      const to = newName.trim()
+      if (!to) throw new Error('Enter a name.')
+      if (s.faculty.some((x) => x.id !== facultyId && nameKey(x.name) === nameKey(to))) throw new Error(`${to} is already in the faculty list.`)
+      const from = f.name
+      f.name = to
+      const fileCodes = applyRename(s, from, to)
+      return { what: `Renamed faculty ${from} to ${to} (${fileCodes.length} files updated)`, fileCodes }
+    })
+  }
+
+  async reassignFaculty(changes: ReassignChange[], recordPrevious: boolean, actor: User): Promise<void> {
+    await this.commit(actor, (s) => {
+      const fileCodes = applyReassign(s, changes, recordPrevious)
+      if (fileCodes.length === 0) throw new Error('No files were reassigned.')
+      const pairs = [...new Set(changes.map((c) => `${c.from.trim()} to ${c.to.trim()}`))].join('; ')
+      return { what: `Reassigned ${fileCodes.length} files: ${pairs}${recordPrevious ? ' (previous maintainer recorded)' : ''}`, fileCodes }
+    })
+  }
+
+  async updateCriterion(criterionId: string, patch: CriterionPatch, actor: User): Promise<void> {
+    await this.commit(actor, (s) => {
+      const c = s.criteria.find((x) => x.id === criterionId)
+      if (!c) throw new Error(`Criterion ${criterionId} not found.`)
+      Object.assign(c, { ...patch, title: patch.title?.trim() ?? c.title, coordinator: patch.coordinator?.trim() ?? c.coordinator })
+      return { what: `Edited criterion ${c.id}: ${c.title}${c.coordinator ? `, coordinator ${c.coordinator}` : ''}` }
+    })
+  }
+
+  async bulkUpdateFileCriteria(fileIds: string[], patch: CriteriaBulkPatch, actor: User): Promise<void> {
+    await this.commit(actor, (s) => {
+      const fileCodes = applyBulkCriteria(s, fileIds, patch)
+      if (fileCodes.length === 0) throw new Error('Select at least one file.')
+      return { what: `Updated criteria on ${fileCodes.length} files`, fileCodes }
+    })
+  }
+
   // ---------------------------------------------------------------------------
 
   /** Serialises writes so two commits in the same tick cannot clone the same base state. */
   private queue: Promise<unknown> = Promise.resolve()
 
-  private commit(actor: User, mutate: (draft: AppState) => { what: string; fileId?: string }): Promise<void> {
+  private commit(
+    actor: User,
+    mutate: (draft: AppState) => { what: string; fileId?: string; fileCodes?: string[] },
+  ): Promise<void> {
     if (actor.role !== 'admin') return Promise.reject(new PermissionError())
     const run = this.queue.then(async () => {
       await this.load()
       // Start from the latest saved state (another tab may have written since we last heard).
       const base = this.read() ?? this.state!
       const draft = structuredClone(base)
-      const { what, fileId } = mutate(draft)
-      const entry: ActivityEntry = { id: newId('log'), at: new Date().toISOString(), who: actor.name, what, fileId }
+      const { what, fileId, fileCodes } = mutate(draft)
+      const entry: ActivityEntry = { id: newId('log'), at: new Date().toISOString(), who: actor.name, what, fileId, fileCodes }
       draft.activity = [entry, ...draft.activity].slice(0, ACTIVITY_LIMIT)
       this.write(draft) // throws on quota errors before memory changes
       this.state = draft
@@ -223,6 +296,12 @@ export class LocalRepo implements Repo {
     return file
   }
 
+  private requireFaculty(s: AppState, facultyId: string): Faculty {
+    const f = s.faculty.find((x) => x.id === facultyId)
+    if (!f) throw new Error('Faculty member not found.')
+    return f
+  }
+
   private requireItem(s: AppState, itemId: string): ChecklistItem {
     const item = s.items.find((i) => i.id === itemId)
     if (!item) throw new Error(`Checklist item ${itemId} not found.`)
@@ -233,8 +312,7 @@ export class LocalRepo implements Repo {
     try {
       const raw = this.storage.getItem(STORAGE_KEY)
       if (!raw) return null
-      const parsed = JSON.parse(raw) as AppState
-      return parsed.version === STATE_VERSION ? parsed : null
+      return migrate(JSON.parse(raw) as AppState)
     } catch {
       return null
     }

@@ -1,12 +1,17 @@
 import type {
   AppState,
   ChecklistItem,
+  CriteriaBulkPatch,
+  CriterionPatch,
   DeptFile,
+  Faculty,
+  FacultyPatch,
   FilePatch,
   ItemPatch,
   ItemStatus,
   NewFileInput,
   Period,
+  ReassignChange,
   User,
 } from '../types'
 
@@ -47,4 +52,14 @@ export interface Repo {
   deleteFile(fileId: string, actor: User): Promise<void>
   /** Adds a year. Checklists carry over; statuses start empty (not completed). */
   addAcademicYear(ay: string, actor: User): Promise<void>
+
+  // Faculty and criteria. The bulk actions must apply all of their changes or none.
+  addFaculty(name: string, designation: string, actor: User): Promise<Faculty>
+  updateFaculty(facultyId: string, patch: FacultyPatch, actor: User): Promise<void>
+  /** Renames the person in the faculty list and in every file and criterion that names them. */
+  renameFaculty(facultyId: string, newName: string, actor: User): Promise<void>
+  /** Applies the ticked changes. With recordPrevious, each old maintainer becomes the previous maintainer. */
+  reassignFaculty(changes: ReassignChange[], recordPrevious: boolean, actor: User): Promise<void>
+  updateCriterion(criterionId: string, patch: CriterionPatch, actor: User): Promise<void>
+  bulkUpdateFileCriteria(fileIds: string[], patch: CriteriaBulkPatch, actor: User): Promise<void>
 }
