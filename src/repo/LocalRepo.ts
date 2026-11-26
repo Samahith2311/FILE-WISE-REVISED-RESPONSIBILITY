@@ -19,20 +19,11 @@ import type {
 } from '../types'
 import { initialState, migrate } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
+import { FIELD_LABELS, facultyChangeText, itemChangeText, newFile } from './shared'
 
 const STORAGE_KEY = 'dept-files:state:v1'
 const CHANNEL_NAME = 'dept-files'
 
-const FIELD_LABELS: Record<keyof FilePatch, string> = {
-  title: 'title',
-  maintainer: 'maintainer',
-  previousMaintainer: 'previous maintainer',
-  presentedIn: 'presented in',
-  previousPresentation: 'previous presentation',
-  relatedCriteria: 'related criteria',
-  physicalLocation: 'physical location',
-  notes: 'notes',
-}
 
 function newId(prefix: string): string {
   const rand =
@@ -124,13 +115,9 @@ export class LocalRepo implements Repo {
     await this.commit(actor, (s) => {
       const item = this.requireItem(s, itemId)
       const file = this.requireFile(s, item.fileId)
-      const before = item.label
+      const what = itemChangeText(item, patch, file.code)
       Object.assign(item, patch)
-      const parts: string[] = []
-      if (patch.label !== undefined && patch.label !== before) parts.push(`renamed "${before}" to "${item.label}"`)
-      if (patch.repeating !== undefined) parts.push(`${patch.repeating ? 'marked' : 'unmarked'} "${item.label}" as repeating`)
-      if (patch.note !== undefined) parts.push(`edited the note on "${item.label}"`)
-      return { what: `In ${file.code}: ${parts.join('; ') || 'edited an item'}`, fileId: file.id }
+      return { what, fileId: file.id }
     })
   }
 
@@ -147,31 +134,10 @@ export class LocalRepo implements Repo {
   async addFile(input: NewFileInput, actor: User): Promise<DeptFile> {
     let created: DeptFile | undefined
     await this.commit(actor, (s) => {
-      const code = input.code.trim().toUpperCase()
-      if (!/^[ADP]\d{2}(\.\d+)?$/.test(code)) throw new Error('Code must look like D34, A53 or P08.4.')
-      if (code[0] !== input.domain) throw new Error(`Code ${code} does not belong to domain ${input.domain}.`)
-      if (s.files.some((f) => f.code === code)) throw new Error(`${code} already exists.`)
-      const group = /^(P\d{2})\.\d+$/.exec(code)?.[1] ?? null
-      created = {
-        id: code,
-        code,
-        domain: input.domain,
-        order: 0,
-        title: input.title.trim(),
-        proposedTitle: false,
-        group,
-        container: null,
-        maintainer: input.maintainer?.trim() ?? '',
-        previousMaintainer: '',
-        presentedIn: { criteria: '', person: '', proposed: false },
-        previousPresentation: '',
-        relatedCriteria: [],
-        physicalLocation: '',
-        notes: '',
-      }
+      created = newFile(input, s.files)
       s.files.push(created)
       renumber(s, input.domain)
-      return { what: `Added file ${code} "${created.title}"`, fileId: code }
+      return { what: `Added file ${created.code} "${created.title}"`, fileId: created.id }
     })
     return created!
   }
@@ -216,11 +182,7 @@ export class LocalRepo implements Repo {
     await this.commit(actor, (s) => {
       const f = this.requireFaculty(s, facultyId)
       Object.assign(f, patch)
-      const parts = [
-        patch.designation !== undefined && `designation to "${f.designation}"`,
-        patch.active !== undefined && (f.active ? 'marked active' : 'marked inactive'),
-      ].filter(Boolean)
-      return { what: `Faculty ${f.name}: ${parts.join(', ') || 'edited'}` }
+      return { what: facultyChangeText(f, patch) }
     })
   }
 
