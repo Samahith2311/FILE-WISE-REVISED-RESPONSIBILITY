@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import vercel from './vercel.json'
 
 /**
  * On Vercel (process.env.VERCEL is set) the build must be Supabase mode: local mode
@@ -32,5 +33,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [react(), tailwindcss()],
     // seed.json (about 200 kB) is bundled into the main chunk until Supabase serves the data.
     build: { chunkSizeWarningLimit: 800 },
+    // npm run preview sends the same security headers (CSP included) as Vercel.
+    preview: { headers: Object.fromEntries(vercel.headers[0]!.headers.map((h) => [h.key, h.value])) },
   }
 })
