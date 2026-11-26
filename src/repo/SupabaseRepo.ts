@@ -4,8 +4,8 @@ import { STATUS_LABELS, statusKey } from '../lib/scoring'
 import type { AppState, ChecklistItem, CriteriaBulkPatch, CriterionPatch, DeptFile, Domain, Faculty, FacultyPatch, FilePatch, ItemPatch, ItemStatus, NewFileInput, Period, ReassignChange, Semester, User } from '../types'
 import { STATE_VERSION } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
-import { FIELD_LABELS } from './shared'
-import { filePatchToRow, toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
+import { FIELD_LABELS, itemChangeText } from './shared'
+import { filePatchToRow, itemPatchToRow, toActivity, toCriterion, toFaculty, toFile, toItem, type ActivityRow, type CriterionRow, type FacultyRow, type FileRow, type ItemRow, type StatusRow } from './supabaseMap'
 const TABLES = ['academic_years', 'faculty', 'criteria', 'files', 'checklist_items', 'item_status', 'activity_log'] as const
 type Table = (typeof TABLES)[number]
 type Row = Record<string, unknown>
@@ -110,8 +110,13 @@ export class SupabaseRepo implements Repo {
     return toItem(row)
   }
 
-  async updateItem(_itemId: string, _patch: ItemPatch, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async updateItem(itemId: string, patch: ItemPatch, actor: User): Promise<void> {
+    this.guard(actor)
+    const item = this.requireItem(itemId)
+    const file = this.requireFile(item.fileId)
+    const row = await this.one<ItemRow>(this.sb.from('checklist_items').update(itemPatchToRow(patch)).eq('id', itemId).select())
+    this.apply('checklist_items', row)
+    await this.log(actor, itemChangeText(item, patch, file.code), file.id)
   }
 
   async deleteItem(_itemId: string, _actor: User): Promise<void> {
