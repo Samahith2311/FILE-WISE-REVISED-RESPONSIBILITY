@@ -65,7 +65,7 @@ Do these steps once. They need the Supabase dashboard (supabase.com).
 7. **Set `.env`.** Copy `.env.example` to `.env`. Set `VITE_DATA_BACKEND=supabase`. Under Project Settings, then API Keys, copy the Project URL into `VITE_SUPABASE_URL` and the publishable (anon) key into `VITE_SUPABASE_PUBLISHABLE_KEY`.
    **Never use the service role or secret key in this app or in any committed file.** The publishable key is safe in the browser because row-level security protects the data.
 8. **Restart** `npm run dev` and sign in with an email address. For the other computers, run `npm run build` with the same `.env` and host the `dist/` folder on any static host; the settings are built into the files.
-9. **Run the advisors.** In the dashboard, go to Advisors and run the Security Advisor and the Performance Advisor. Fix anything they report.
+9. **Run the advisors.** In the dashboard, go to Advisors and run the Security Advisor and the Performance Advisor. Fix anything they report. One warning is expected: `public.is_admin()` is a security definer function that signed-in users can call. This is by design. It is what the row-level security policies use, and it only tells callers whether they are the admin. To clear the warning, move it to a schema the API does not expose and update the policies.
 10. **Check that viewers cannot write.** In the SQL Editor, use the role selector to run as the `authenticated` role, impersonating a viewer. Then run `insert into public.academic_years (ay) values ('2099-00');`. It must fail with "new row violates row-level security policy". `npm run check:sql` runs the same checks offline on every table and function.
 
 To go back to local mode, set `VITE_DATA_BACKEND=local` and restart.
