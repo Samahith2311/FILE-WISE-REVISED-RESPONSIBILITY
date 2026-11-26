@@ -2,18 +2,20 @@ import { MotionConfig } from 'framer-motion'
 import { useState, type ReactNode } from 'react'
 import { ActivityLog } from './components/ActivityLog'
 import { DomainBoxes } from './components/DomainBoxes'
+import { FacultyView } from './components/FacultyView'
 import { Header } from './components/Header'
 import { CriteriaView, NeedsAttention, PeopleView } from './components/Insights'
 import { LoginScreen } from './components/LoginScreen'
 import { QarSheet } from './components/QarSheet'
 import { useStore } from './store'
 
-type View = 'files' | 'attention' | 'criteria' | 'people' | 'qar' | 'activity'
+type View = 'files' | 'attention' | 'criteria' | 'faculty' | 'people' | 'qar' | 'activity'
 
 const VIEWS: Array<{ id: View; label: string; render: () => ReactNode }> = [
   { id: 'files', label: 'Files', render: () => <DomainBoxes /> },
   { id: 'attention', label: 'Needs attention', render: () => <NeedsAttention /> },
   { id: 'criteria', label: 'Criteria', render: () => <CriteriaView /> },
+  { id: 'faculty', label: 'Faculty', render: () => <FacultyView /> },
   { id: 'people', label: 'People', render: () => <PeopleView /> },
   { id: 'qar', label: 'QAR sheet', render: () => <QarSheet /> },
   { id: 'activity', label: 'Activity log', render: () => <ActivityLog /> },
