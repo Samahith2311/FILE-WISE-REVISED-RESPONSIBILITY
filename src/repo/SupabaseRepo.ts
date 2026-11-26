@@ -175,8 +175,20 @@ export class SupabaseRepo implements Repo {
     await this.rpc(actor, 'reassign_faculty', { p_changes: changes, p_record_previous: recordPrevious })
   }
 
-  async updateCriterion(_criterionId: string, _patch: CriterionPatch, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async updateCriterion(criterionId: string, patch: CriterionPatch, actor: User): Promise<void> {
+    this.guard(actor)
+    const row = await this.one<CriterionRow>(
+      this.sb
+        .from('criteria')
+        .update({
+          ...(patch.title !== undefined && { title: patch.title.trim() }),
+          ...(patch.coordinator !== undefined && { coordinator: patch.coordinator.trim() }),
+        })
+        .eq('id', criterionId)
+        .select(),
+    )
+    this.apply('criteria', row)
+    await this.log(actor, `Edited criterion ${row.id}: ${row.title}${row.coordinator ? `, coordinator ${row.coordinator}` : ''}`)
   }
 
   async bulkUpdateFileCriteria(_fileIds: string[], _patch: CriteriaBulkPatch, _actor: User): Promise<void> {
