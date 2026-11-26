@@ -1,7 +1,7 @@
 import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
 import seed from '../data/seed.json'
 import { nameKey } from '../lib/faculty'
-import { STATUS_LABELS, statusKey } from '../lib/scoring'
+import { statusKey } from '../lib/scoring'
 import type {
   AppState,
   ChecklistItem,
@@ -22,7 +22,7 @@ import type {
 } from '../types'
 import { STATE_VERSION } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
-import { FIELD_LABELS, facultyChangeText, itemChangeText, newFile } from './shared'
+import { newFile } from './shared'
 import {
   fileToRow,
   filePatchToRow,
@@ -67,6 +67,10 @@ function fail(error: DbError): never {
  *
  * Writes update the cache only after Supabase returns the saved row. Bulk actions
  * run as Postgres functions (one transaction each) and are followed by a reload.
+ *
+ * Each write is one request. Database triggers add its activity_log row in the same
+ * transaction (supabase/migrations/20261126001700_activity_triggers.sql); the row
+ * reaches the cache through realtime like any other change.
  */
 export class SupabaseRepo implements Repo {
   private state: AppState | null = null
@@ -122,13 +126,10 @@ export class SupabaseRepo implements Repo {
       this.sb.from('files').update({ ...filePatchToRow(patch), updated_at: new Date().toISOString() }).eq('id', fileId).select(),
     )
     this.apply('files', row)
-    await this.log(actor, `Edited ${keys.map((k) => FIELD_LABELS[k]).join(', ')} of ${row.code}`, fileId)
   }
 
   async setStatus(itemId: string, period: Period, status: ItemStatus, actor: User): Promise<void> {
     this.guard(actor)
-    const item = this.requireItem(itemId)
-    const file = this.requireFile(item.fileId)
     const { data } = await this.sb.auth.getSession()
     const row = await this.one<StatusRow>(
       this.sb
@@ -140,7 +141,6 @@ export class SupabaseRepo implements Repo {
         .select(),
     )
     this.apply('item_status', row)
-    await this.log(actor, `Marked "${item.label}" in ${file.code} as ${STATUS_LABELS[status]} (${period.ay} ${period.sem})`, file.id)
   }
 
   async addItem(fileId: string, label: string, actor: User): Promise<ChecklistItem> {
@@ -155,26 +155,19 @@ export class SupabaseRepo implements Repo {
         .select(),
     )
     this.apply('checklist_items', row)
-    await this.log(actor, `Added checklist item "${row.label}" to ${file.code}`, fileId)
     return toItem(row)
   }
 
   async updateItem(itemId: string, patch: ItemPatch, actor: User): Promise<void> {
     this.guard(actor)
-    const item = this.requireItem(itemId)
-    const file = this.requireFile(item.fileId)
     const row = await this.one<ItemRow>(this.sb.from('checklist_items').update(itemPatchToRow(patch)).eq('id', itemId).select())
     this.apply('checklist_items', row)
-    await this.log(actor, itemChangeText(item, patch, file.code), file.id)
   }
 
   async deleteItem(itemId: string, actor: User): Promise<void> {
     this.guard(actor)
-    const item = this.requireItem(itemId)
-    const file = this.requireFile(item.fileId)
     const row = await this.one<ItemRow>(this.sb.from('checklist_items').delete().eq('id', itemId).select())
     this.apply('checklist_items', null, row)
-    await this.log(actor, `Deleted checklist item "${item.label}" from ${file.code}`, file.id)
   }
 
   async addFile(input: NewFileInput, actor: User): Promise<DeptFile> {
@@ -182,7 +175,6 @@ export class SupabaseRepo implements Repo {
     const file = newFile(input, this.cached().files)
     const row = await this.one<FileRow>(this.sb.from('files').insert(fileToRow(file)).select())
     this.apply('files', row)
-    await this.log(actor, `Added file ${row.code} "${row.title}"`, row.id)
     return toFile(row)
   }
 
@@ -192,7 +184,6 @@ export class SupabaseRepo implements Repo {
     if (file.container) throw new Error(`${file.code} holds the ${file.container} files and cannot be deleted.`)
     const row = await this.one<FileRow>(this.sb.from('files').delete().eq('id', fileId).select())
     this.apply('files', null, row)
-    await this.log(actor, `Deleted file ${file.code} "${file.title}"`)
   }
 
   async addAcademicYear(ay: string, actor: User): Promise<void> {
@@ -206,7 +197,6 @@ export class SupabaseRepo implements Repo {
     if (this.cached().faculty.some((f) => nameKey(f.name) === nameKey(clean))) throw new Error(`${clean} is already in the faculty list.`)
     const row = await this.one<FacultyRow>(this.sb.from('faculty').insert({ name: clean, designation: designation.trim() }).select())
     this.apply('faculty', row)
-    await this.log(actor, `Added faculty ${row.name}`)
     return toFaculty(row)
   }
 
@@ -214,7 +204,6 @@ export class SupabaseRepo implements Repo {
     this.guard(actor)
     const row = await this.one<FacultyRow>(this.sb.from('faculty').update(patch).eq('id', facultyId).select())
     this.apply('faculty', row)
-    await this.log(actor, facultyChangeText(toFaculty(row), patch))
   }
 
   async renameFaculty(facultyId: string, newName: string, actor: User): Promise<void> {
@@ -238,7 +227,6 @@ export class SupabaseRepo implements Repo {
         .select(),
     )
     this.apply('criteria', row)
-    await this.log(actor, `Edited criterion ${row.id}: ${row.title}${row.coordinator ? `, coordinator ${row.coordinator}` : ''}`)
   }
 
   async bulkUpdateFileCriteria(fileIds: string[], patch: CriteriaBulkPatch, actor: User): Promise<void> {
@@ -262,12 +250,6 @@ export class SupabaseRepo implements Repo {
     return file
   }
 
-  private requireItem(itemId: string): ChecklistItem {
-    const item = this.cached().items.find((i) => i.id === itemId)
-    if (!item) throw new Error(`Checklist item ${itemId} not found.`)
-    return item
-  }
-
   /** Runs one write and returns the saved row. No row back means RLS hid it or it was gone. */
   private async one<T>(query: PromiseLike<{ data: T[] | null; error: DbError | null }>): Promise<T> {
     const { data, error } = await query
@@ -275,12 +257,6 @@ export class SupabaseRepo implements Repo {
     const row = data?.[0]
     if (!row) throw new Error('Not saved: the record was not found or you do not have permission.')
     return row
-  }
-
-  // shortcut: the write and its log row are two requests, not one transaction; move both into an RPC if a lost log row ever matters.
-  private async log(actor: User, what: string, fileId?: string): Promise<void> {
-    const row = await this.one<ActivityRow>(this.sb.from('activity_log').insert({ who: actor.name, what, file_id: fileId ?? null }).select())
-    this.apply('activity_log', row)
   }
 
   /** Bulk actions: one Postgres transaction each (which also writes the log), then a full reload. */
