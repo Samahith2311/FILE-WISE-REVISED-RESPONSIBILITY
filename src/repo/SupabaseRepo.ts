@@ -137,8 +137,13 @@ export class SupabaseRepo implements Repo {
     return toFile(row)
   }
 
-  async deleteFile(_fileId: string, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async deleteFile(fileId: string, actor: User): Promise<void> {
+    this.guard(actor)
+    const file = this.requireFile(fileId)
+    if (file.container) throw new Error(`${file.code} holds the ${file.container} files and cannot be deleted.`)
+    const row = await this.one<FileRow>(this.sb.from('files').delete().eq('id', fileId).select())
+    this.apply('files', null, row)
+    await this.log(actor, `Deleted file ${file.code} "${file.title}"`)
   }
 
   async addAcademicYear(_ay: string, _actor: User): Promise<void> {
