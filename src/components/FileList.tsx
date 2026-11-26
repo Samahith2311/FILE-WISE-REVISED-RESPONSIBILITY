@@ -25,7 +25,7 @@ export function FileList({ files, query = '' }: { files: DeptFile[]; query?: str
       const matching = children.filter((f) => matchesQuery(f, query))
       const selfMatch = matchesQuery(file, query)
       if (!selfMatch && matching.length === 0) return []
-      return [{ file, children: selfMatch && !query.trim() ? children : matching, forceOpen: !!query.trim() && matching.length > 0 }]
+      return [{ file, children: selfMatch ? children : matching, forceOpen: !!query.trim() && !selfMatch && matching.length > 0 }]
     }
     return matchesQuery(file, query) ? [{ file, children: null, forceOpen: false }] : []
   })

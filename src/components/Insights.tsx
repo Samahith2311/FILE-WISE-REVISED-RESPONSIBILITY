@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { CRITERIA } from '../data/staff'
-import { ATTENTION_THRESHOLD, average } from '../lib/scoring'
+import { ATTENTION_THRESHOLD, average, roundScore } from '../lib/scoring'
 import { useStore } from '../store'
 import type { DeptFile } from '../types'
 import { BandLabel, Chevron, Collapse, Pct, ProgressBar } from './ui'
@@ -52,7 +52,7 @@ function useScoredFiles() {
 export function NeedsAttention() {
   const scored = useScoredFiles()
   const list = scored
-    .filter((x): x is { file: DeptFile; score: number } => x.score !== null && x.score < ATTENTION_THRESHOLD)
+    .filter((x): x is { file: DeptFile; score: number } => x.score !== null && roundScore(x.score)! < ATTENTION_THRESHOLD)
     .sort((a, b) => a.score - b.score || a.file.code.localeCompare(b.file.code))
 
   return (

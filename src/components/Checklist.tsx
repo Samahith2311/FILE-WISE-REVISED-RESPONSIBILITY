@@ -95,8 +95,10 @@ function AdminItem({ item, status, onStatus }: { item: ChecklistItem; status: It
   const [label, setLabel] = useState(item.label)
   const [note, setNote] = useState(item.note)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [base, setBase] = useState({ label: item.label, note: item.note })
 
   function startEdit() {
+    setBase({ label: item.label, note: item.note })
     setLabel(item.label)
     setNote(item.note)
     setConfirmDelete(false)
@@ -106,8 +108,8 @@ function AdminItem({ item, status, onStatus }: { item: ChecklistItem; status: It
   async function save(e: FormEvent) {
     e.preventDefault()
     const patch: ItemPatch = {}
-    if (label.trim() && label.trim() !== item.label) patch.label = label.trim()
-    if (note.trim() !== item.note) patch.note = note.trim()
+    if (label.trim() && label.trim() !== base.label) patch.label = label.trim()
+    if (note.trim() !== base.note) patch.note = note.trim()
     if (Object.keys(patch).length) await actions.updateItem(item.id, patch)
     setEditing(false)
   }

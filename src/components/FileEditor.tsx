@@ -28,6 +28,9 @@ export function StaffDatalist() {
 /** Admin form for every editable file attribute. Saves only the fields that changed. */
 export function FileEditor({ file, onDone }: { file: DeptFile; onDone: () => void }) {
   const { actions } = useStore()
+  // Snapshot at open: only fields the admin changed are saved, so edits made
+  // meanwhile in another tab are not overwritten with stale values.
+  const [initial] = useState(file)
   const [draft, setDraft] = useState({
     title: file.title,
     maintainer: file.maintainer,
@@ -49,17 +52,18 @@ export function FileEditor({ file, onDone }: { file: DeptFile; onDone: () => voi
     const text = ['title', 'maintainer', 'previousMaintainer', 'previousPresentation', 'physicalLocation', 'notes'] as const
     for (const key of text) {
       const value = draft[key].trim()
-      if (value !== file[key]) patch[key] = value
+      if (value !== initial[key]) patch[key] = value
     }
     const presentedIn = { criteria: draft.criteria, person: draft.person.trim(), proposed: draft.proposed }
-    if (JSON.stringify(presentedIn) !== JSON.stringify(file.presentedIn)) patch.presentedIn = presentedIn
+    if (JSON.stringify(presentedIn) !== JSON.stringify(initial.presentedIn)) patch.presentedIn = presentedIn
     const related = CRITERIA.filter((c) => draft.relatedCriteria.includes(c))
-    if (related.join() !== file.relatedCriteria.join()) patch.relatedCriteria = [...related]
+    if (related.join() !== initial.relatedCriteria.join()) patch.relatedCriteria = [...related]
 
+    if (Object.keys(patch).length === 0) return onDone()
     setSaving(true)
-    await actions.updateFile(file.id, patch)
+    const ok = await actions.updateFile(file.id, patch)
     setSaving(false)
-    onDone()
+    if (ok) onDone()
   }
 
   return (

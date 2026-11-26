@@ -15,7 +15,8 @@ import type {
 } from './types'
 
 export interface Actions {
-  updateFile(fileId: string, patch: FilePatch): Promise<void>
+  /** Resolves true when saved. */
+  updateFile(fileId: string, patch: FilePatch): Promise<boolean>
   setStatus(itemId: string, status: ItemStatus): Promise<void>
   addItem(fileId: string, label: string): Promise<ChecklistItem | undefined>
   updateItem(itemId: string, patch: ItemPatch): Promise<void>
@@ -62,7 +63,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(() => auth.onChange(setUser), [])
+  useEffect(
+    () =>
+      auth.onChange((u) => {
+        setUser(u)
+        setError(null)
+      }),
+    [],
+  )
 
   // Default to the latest year; recover if the selected year disappears.
   useEffect(() => {
@@ -89,7 +97,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const actions = useMemo<Actions>(
     () => ({
-      updateFile: (id, patch) => run((u) => repo.updateFile(id, patch, u)),
+      updateFile: async (id, patch) => (await run((u) => repo.updateFile(id, patch, u).then(() => true))) ?? false,
       setStatus: (itemId, status) => run((u) => repo.setStatus(itemId, period, status, u)),
       addItem: (fileId, label) => run((u) => repo.addItem(fileId, label, u)),
       updateItem: (id, patch) => run((u) => repo.updateItem(id, patch, u)),

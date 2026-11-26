@@ -58,8 +58,16 @@ export class LocalRepo implements Repo {
 
   async load(): Promise<AppState> {
     if (!this.state) {
-      this.state = this.read() ?? initialState()
-      if (!this.storage.getItem(STORAGE_KEY)) this.write(this.state)
+      const saved = this.read()
+      if (saved) {
+        this.state = saved
+      } else {
+        // Unreadable or older-version data: keep a copy before replacing it with the seed.
+        const raw = this.storage.getItem(STORAGE_KEY)
+        if (raw) this.storage.setItem(`${STORAGE_KEY}:backup:${Date.now()}`, raw)
+        this.state = initialState()
+        this.write(this.state)
+      }
     }
     return this.state
   }
@@ -187,20 +195,26 @@ export class LocalRepo implements Repo {
 
   // ---------------------------------------------------------------------------
 
-  private async commit(
-    actor: User,
-    mutate: (draft: AppState) => { what: string; fileId?: string },
-  ): Promise<void> {
-    if (actor.role !== 'admin') throw new PermissionError()
-    const current = await this.load()
-    const draft = structuredClone(current)
-    const { what, fileId } = mutate(draft)
-    const entry: ActivityEntry = { id: newId('log'), at: new Date().toISOString(), who: actor.name, what, fileId }
-    draft.activity = [entry, ...draft.activity].slice(0, ACTIVITY_LIMIT)
-    this.state = draft
-    this.write(draft)
-    this.emit()
-    this.channel?.postMessage({ type: 'changed', at: entry.at })
+  /** Serialises writes so two commits in the same tick cannot clone the same base state. */
+  private queue: Promise<unknown> = Promise.resolve()
+
+  private commit(actor: User, mutate: (draft: AppState) => { what: string; fileId?: string }): Promise<void> {
+    if (actor.role !== 'admin') return Promise.reject(new PermissionError())
+    const run = this.queue.then(async () => {
+      await this.load()
+      // Start from the latest saved state (another tab may have written since we last heard).
+      const base = this.read() ?? this.state!
+      const draft = structuredClone(base)
+      const { what, fileId } = mutate(draft)
+      const entry: ActivityEntry = { id: newId('log'), at: new Date().toISOString(), who: actor.name, what, fileId }
+      draft.activity = [entry, ...draft.activity].slice(0, ACTIVITY_LIMIT)
+      this.write(draft) // throws on quota errors before memory changes
+      this.state = draft
+      this.emit()
+      this.channel?.postMessage({ type: 'changed', at: entry.at })
+    })
+    this.queue = run.catch(() => undefined)
+    return run
   }
 
   private requireFile(s: AppState, fileId: string): DeptFile {
