@@ -1,6 +1,6 @@
 import type { RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient } from '@supabase/supabase-js'
 import seed from '../data/seed.json'
-import { statusKey } from '../lib/scoring'
+import { STATUS_LABELS, statusKey } from '../lib/scoring'
 import type { AppState, ChecklistItem, CriteriaBulkPatch, CriterionPatch, DeptFile, Domain, Faculty, FacultyPatch, FilePatch, ItemPatch, ItemStatus, NewFileInput, Period, ReassignChange, Semester, User } from '../types'
 import { STATE_VERSION } from './initialState'
 import { ACTIVITY_LIMIT, PermissionError, type Repo } from './Repo'
@@ -76,8 +76,22 @@ export class SupabaseRepo implements Repo {
     await this.log(actor, `Edited ${keys.map((k) => FIELD_LABELS[k]).join(', ')} of ${row.code}`, fileId)
   }
 
-  async setStatus(_itemId: string, _period: Period, _status: ItemStatus, _actor: User): Promise<void> {
-    throw new Error('Not implemented yet.')
+  async setStatus(itemId: string, period: Period, status: ItemStatus, actor: User): Promise<void> {
+    this.guard(actor)
+    const item = this.requireItem(itemId)
+    const file = this.requireFile(item.fileId)
+    const { data } = await this.sb.auth.getSession()
+    const row = await this.one<StatusRow>(
+      this.sb
+        .from('item_status')
+        .upsert(
+          { item_id: itemId, ay: period.ay, sem: period.sem, status, updated_at: new Date().toISOString(), updated_by: data.session?.user.id ?? null },
+          { onConflict: 'item_id,ay,sem' },
+        )
+        .select(),
+    )
+    this.apply('item_status', row)
+    await this.log(actor, `Marked "${item.label}" in ${file.code} as ${STATUS_LABELS[status]} (${period.ay} ${period.sem})`, file.id)
   }
 
   async addItem(_fileId: string, _label: string, _actor: User): Promise<ChecklistItem> {
@@ -132,6 +146,23 @@ export class SupabaseRepo implements Repo {
 
   private guard(actor: User): void {
     if (actor.role !== 'admin') throw new PermissionError()
+  }
+
+  private cached(): AppState {
+    if (!this.state) throw new Error('Data is not loaded yet.')
+    return this.state
+  }
+
+  private requireFile(fileId: string): DeptFile {
+    const file = this.cached().files.find((f) => f.id === fileId)
+    if (!file) throw new Error(`File ${fileId} not found.`)
+    return file
+  }
+
+  private requireItem(itemId: string): ChecklistItem {
+    const item = this.cached().items.find((i) => i.id === itemId)
+    if (!item) throw new Error(`Checklist item ${itemId} not found.`)
+    return item
   }
 
   /** Runs one write and returns the saved row. No row back means RLS hid it or it was gone. */
