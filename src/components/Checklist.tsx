@@ -5,10 +5,10 @@ import type { ChecklistItem, ItemPatch, ItemStatus } from '../types'
 import { Badge, Button, inputClass } from './ui'
 
 const SELECTED: Record<ItemStatus, string> = {
-  completed: 'border-emerald-600 bg-emerald-600 text-white',
-  partial: 'border-amber-500 bg-amber-500 text-white',
-  not_completed: 'border-rose-600 bg-rose-600 text-white',
-  na: 'border-stone-500 bg-stone-500 text-white',
+  completed: 'border-band-green-ink bg-band-green-ink text-white',
+  partial: 'border-amber bg-amber text-navy-deep',
+  not_completed: 'border-band-red bg-band-red text-white',
+  na: 'border-stone-600 bg-stone-600 text-white',
 }
 
 const PILL: Record<ItemStatus, string> = {
